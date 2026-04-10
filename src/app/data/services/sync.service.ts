@@ -1,5 +1,5 @@
 import { Injectable, effect, inject } from '@angular/core';
-import { db } from '../local/app.database';
+import { dbReady } from '../local/app.database';
 import { FirebaseService } from '../../core/firebase/firebase.service';
 import { collection, doc, setDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { AppStore } from '../../core/store/app.store';
@@ -47,6 +47,8 @@ export class SyncService {
     const user = this.auth.currentUser;
     if (!user) return;
 
+    const db = await dbReady;
+
     try {
       this.appStore.setIsSyncing(true);
 
@@ -92,6 +94,8 @@ export class SyncService {
 
     this.isSyncing = true;
     this.appStore.setIsSyncing(true);
+
+    const db = await dbReady;
 
     let queueLength = await db.syncQueue.where('status').equals('pending').count();
     this.appStore.updateSyncQueueLength(queueLength);

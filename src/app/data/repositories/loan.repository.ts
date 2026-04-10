@@ -1,5 +1,5 @@
 import { Injectable, Injector, inject } from '@angular/core';
-import { db } from '../local/app.database';
+import { dbReady } from '../local/app.database';
 import { Loan } from '../../domain/models/loan.model';
 import { NetworkStatus } from '../../core/store/app.store';
 
@@ -8,14 +8,18 @@ export class LoanRepository {
   private injector = inject(Injector);
   
   async getAllLoans(): Promise<Loan[]> {
+    const db = await dbReady;
     return await db.loans.toArray();
   }
 
   async getLoanById(id: string): Promise<Loan | undefined> {
+    const db = await dbReady;
     return await db.loans.get(id);
   }
 
   async createLoan(loan: Loan, networkStatus: NetworkStatus): Promise<string> {
+    const db = await dbReady;
+
     // 1. Generate local ID
     const loanId = typeof crypto !== 'undefined' && crypto.randomUUID 
       ? crypto.randomUUID() 
@@ -43,6 +47,7 @@ export class LoanRepository {
 
   async updateLoan(loan: Loan, networkStatus: NetworkStatus): Promise<void> {
     if (!loan.id) return;
+    const db = await dbReady;
 
     // 1. Update locally
     await db.loans.update(loan.id, loan);
