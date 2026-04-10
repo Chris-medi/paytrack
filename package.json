@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --port 5000",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
@@ -30,11 +30,17 @@
     "@angular/forms": "^21.1.0",
     "@angular/platform-browser": "^21.1.0",
     "@angular/platform-server": "^21.1.0",
+    "@angular/pwa": "^21.2.7",
     "@angular/router": "^21.1.0",
+    "@angular/service-worker": "^21.2.8",
     "@angular/ssr": "^21.1.0",
+    "@ngrx/signals": "^21.1.0",
+    "dexie": "^4.4.2",
     "express": "^5.1.0",
+    "firebase": "^12.12.0",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@angular/build": "^21.1.0",
