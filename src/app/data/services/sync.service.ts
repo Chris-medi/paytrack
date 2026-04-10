@@ -1,18 +1,18 @@
 import { Injectable, effect, inject } from '@angular/core';
 import { db } from '../local/app.database';
-import { initFirebase } from '../../core/firebase/firebase.config';
+import { FirebaseService } from '../../core/firebase/firebase.service';
 import { collection, doc, setDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { AppStore } from '../../core/store/app.store';
 import { LoanStore } from '../../features/loans/store/loan.store';
-import { Auth } from 'firebase/auth';
 
 @Injectable({ providedIn: 'root' })
 export class SyncService {
   appStore = inject(AppStore);
   loanStore = inject(LoanStore);
+  private firebaseService = inject(FirebaseService);
 
-  private firestore = initFirebase().firestore;
-  private auth: Auth = initFirebase().auth;
+  private firestore = this.firebaseService.firestore;
+  private auth = this.firebaseService.auth;
   private syncInterval: any;
 
   constructor() {

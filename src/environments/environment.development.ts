@@ -1,11 +1,12 @@
 export const environment = {
   production: false,
   firebase: {
-    apiKey: 'your-api-key',
-    authDomain: 'your-auth-domain',
-    projectId: 'your-project-id',
-    storageBucket: 'your-storage-bucket',
-    messagingSenderId: 'your-messaging-sender-id',
-    appId: 'your-app-id'
+    apiKey: "AIzaSyAVrozWr6gzHRxLUu2h2mfOiENA4ymxsyw",
+    authDomain: "paytrack-def2b.firebaseapp.com",
+    projectId: "paytrack-def2b",
+    storageBucket: "paytrack-def2b.firebasestorage.app",
+    messagingSenderId: "945105350718",
+    appId: "1:945105350718:web:e91048d271f4b3caf1e16f",
+    measurementId: "G-NGD8W6PG32"
   }
 };

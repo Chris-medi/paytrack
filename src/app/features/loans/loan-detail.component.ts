@@ -136,7 +136,7 @@ import { FormsModule } from '@angular/forms';
       <!-- Action FAB (Añadir Pago) -->
       @if (currentStatus() !== 'paid') {
         <button (click)="openPaymentModal()"
-                class="fixed bottom-6 right-6 lg:bottom-10 lg:right-1/3 bg-slate-900 dark:bg-emerald-500 text-white rounded-full p-4 shadow-xl shadow-slate-900/20 dark:shadow-emerald-500/20 active:scale-90 transition-transform z-20 flex items-center gap-2 pr-6">
+                class="fixed bottom-19 right-6 lg:bottom-19 lg:right-1/3 bg-slate-900 dark:bg-emerald-500 text-white rounded-full p-4 shadow-xl shadow-slate-900/20 dark:shadow-emerald-500/20 active:scale-90 transition-transform z-20 flex items-center gap-2 pr-6">
           <svg class="w-6 h-6 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
           <span class="font-bold">Abonar</span>
         </button>
@@ -153,7 +153,7 @@ export class LoanDetailComponent implements OnInit {
   paymentStore = inject(PaymentStore);
 
   loanId: string | null = null;
-  
+
   // UI States
   isPaymentModalOpen = signal(false);
   paymentAmount = signal<number | null>(null);
@@ -218,7 +218,7 @@ export class LoanDetailComponent implements OnInit {
 
   async submitPayment() {
     if (!this.loanId || !this.paymentAmount()) return;
-    
+
     const amount = Number(this.paymentAmount());
     if (amount <= 0) return;
 

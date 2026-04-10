@@ -1,7 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AppStore } from './core/store/app.store';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { FirebaseService } from './core/firebase/firebase.service';
+import { onAuthStateChanged } from 'firebase/auth';
 import { SyncService } from './data/services/sync.service';
 
 @Component({
@@ -21,11 +22,11 @@ import { SyncService } from './data/services/sync.service';
 export class AppComponent implements OnInit {
   appStore = inject(AppStore);
   syncService = inject(SyncService);
+  private firebaseService = inject(FirebaseService);
 
   ngOnInit() {
     // Escuchar el estado de autenticación real en la entrada principal
-    const auth = getAuth();
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(this.firebaseService.auth, async (user) => {
       // Pasamos un objeto con propiedades mínimas o null
       if (user) {
         this.appStore.setUser({

@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { FirebaseService } from '../../core/firebase/firebase.service';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 @Component({
   selector: 'app-login',
@@ -46,12 +47,12 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 })
 export class LoginComponent {
   #router = inject(Router);
+  #firebaseService = inject(FirebaseService);
 
   async loginWithGoogle() {
-    const auth = getAuth();
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(this.#firebaseService.auth, provider);
       this.#router.navigate(['/dashboard']);
     } catch (error) {
       console.error('Error logging in:', error);
