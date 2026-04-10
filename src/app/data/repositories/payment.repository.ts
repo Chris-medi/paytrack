@@ -1,10 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { db } from '../local/app.database';
 import { Payment } from '../../domain/models/payment.model';
 import { NetworkStatus } from '../../core/store/app.store';
 
 @Injectable({ providedIn: 'root' })
 export class PaymentRepository {
+  private injector = inject(Injector);
 
   async getPaymentsByLoanId(loanId: string): Promise<Payment[]> {
     return await db.payments.where('loanId').equals(loanId).toArray();
@@ -28,6 +29,17 @@ export class PaymentRepository {
       createdAt: new Date()
     });
 
+    // Trigger sync immediately
+    this.triggerSync();
+
     return paymentId;
+  }
+
+  private triggerSync() {
+    // Lazy import to break circular dep
+    import('../services/sync.service').then(m => {
+      const syncService = this.injector.get(m.SyncService);
+      syncService.triggerSync();
+    });
   }
 }

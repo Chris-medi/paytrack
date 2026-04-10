@@ -19,9 +19,9 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('PaymentHistoryDB');
     
-    this.version(1).stores({
-      loans: '++id, borrowerDocument, status, createdAt',
-      payments: '++id, loanId, date',
+    this.version(2).stores({
+      loans: 'id, borrowerDocument, status, createdAt',
+      payments: 'id, loanId, date',
       syncQueue: '++id, collection, status, createdAt'
     });
   }

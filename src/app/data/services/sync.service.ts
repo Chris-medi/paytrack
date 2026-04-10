@@ -14,6 +14,7 @@ export class SyncService {
   private firestore = this.firebaseService.firestore;
   private auth = this.firebaseService.auth;
   private syncInterval: any;
+  private isSyncing = false;
 
   constructor() {
     // Escuchar cambios de estado de red
@@ -31,6 +32,15 @@ export class SyncService {
   }
 
   /**
+   * Trigger sync inmediato — llamado desde repositorios después de escribir a la cola
+   */
+  async triggerSync() {
+    if (this.appStore.networkStatus() === 'online' && this.auth.currentUser) {
+      await this.processSyncQueue();
+    }
+  }
+
+  /**
    * Sincronización descendente (Firestore -> IndexedDB)
    */
   async syncDown() {
@@ -43,7 +53,10 @@ export class SyncService {
       // 1. Obtener préstamos de Firestore
       const loansRef = collection(this.firestore, `users/${user.uid}/loans`);
       const loansSnapshot = await getDocs(loansRef);
-      const remoteLoans = loansSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const remoteLoans = loansSnapshot.docs.map(d => ({
+        id: d.id,
+        ...this.convertTimestampsToDate(d.data())
+      }));
 
       // Guardar en Dexie
       if (remoteLoans.length > 0) {
@@ -53,7 +66,10 @@ export class SyncService {
       // 2. Obtener pagos
       const paymentsRef = collection(this.firestore, `users/${user.uid}/payments`);
       const paymentsSnapshot = await getDocs(paymentsRef);
-      const remotePayments = paymentsSnapshot.docs.map(doc => ({ ...doc.data() }));
+      const remotePayments = paymentsSnapshot.docs.map(d => ({
+        id: d.id,
+        ...this.convertTimestampsToDate(d.data())
+      }));
 
       if (remotePayments.length > 0) {
         await db.payments.bulkPut(remotePayments as any[]);
@@ -72,9 +88,11 @@ export class SyncService {
    */
   async processSyncQueue() {
     const user = this.auth.currentUser;
-    if (!user) return;
+    if (!user || this.isSyncing) return;
 
+    this.isSyncing = true;
     this.appStore.setIsSyncing(true);
+
     let queueLength = await db.syncQueue.where('status').equals('pending').count();
     this.appStore.updateSyncQueueLength(queueLength);
 
@@ -82,15 +100,8 @@ export class SyncService {
 
     for (const item of pendingItems) {
       try {
-        const payload = { ...item.payload };
-        
-        // Convert Date objects to Firestore Timestamps if necessary, though setDoc accepts Dates usually.
-        // To be safer with Firestore:
-        Object.keys(payload).forEach(key => {
-          if (payload[key] instanceof Date) {
-            payload[key] = Timestamp.fromDate(payload[key]);
-          }
-        });
+        // Convert all date-like values to Firestore Timestamps
+        const payload = this.convertDatesToTimestamps(item.payload);
 
         // Set remote doc
         // Estructura: users/{userId}/{collection}/{itemId}
@@ -112,6 +123,40 @@ export class SyncService {
     queueLength = await db.syncQueue.where('status').equals('pending').count();
     this.appStore.updateSyncQueueLength(queueLength);
     this.appStore.setIsSyncing(false);
+    this.isSyncing = false;
+  }
+
+  /**
+   * Convierte Date objects y strings ISO a Firestore Timestamps para subir
+   */
+  private convertDatesToTimestamps(data: any): any {
+    const converted = { ...data };
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T/;
+
+    for (const key of Object.keys(converted)) {
+      const val = converted[key];
+      if (val instanceof Date) {
+        converted[key] = Timestamp.fromDate(val);
+      } else if (typeof val === 'string' && isoDateRegex.test(val) && !isNaN(Date.parse(val))) {
+        converted[key] = Timestamp.fromDate(new Date(val));
+      }
+    }
+    return converted;
+  }
+
+  /**
+   * Convierte Firestore Timestamps a JS Date al descargar
+   */
+  private convertTimestampsToDate(data: any): any {
+    const converted = { ...data };
+    for (const key of Object.keys(converted)) {
+      const val = converted[key];
+      if (val && typeof val.toDate === 'function') {
+        // Firestore Timestamp → JS Date
+        converted[key] = val.toDate();
+      }
+    }
+    return converted;
   }
 
   // Poll cada minuto si la app está abierta y hay red

@@ -1,10 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { db } from '../local/app.database';
 import { Loan } from '../../domain/models/loan.model';
 import { NetworkStatus } from '../../core/store/app.store';
 
 @Injectable({ providedIn: 'root' })
 export class LoanRepository {
+  private injector = inject(Injector);
   
   async getAllLoans(): Promise<Loan[]> {
     return await db.loans.toArray();
@@ -34,7 +35,9 @@ export class LoanRepository {
       createdAt: new Date()
     });
 
-    // We can try to sync immediately if online, but that logic usually goes to a SyncService
+    // 4. Trigger sync immediately (lazy inject to avoid circular dependency)
+    this.triggerSync();
+
     return loanId;
   }
 
@@ -51,6 +54,17 @@ export class LoanRepository {
       payload: loan,
       status: 'pending',
       createdAt: new Date()
+    });
+
+    // 3. Trigger sync immediately
+    this.triggerSync();
+  }
+
+  private triggerSync() {
+    // Lazy import to break circular dep: SyncService -> LoanStore -> LoanRepository -> SyncService
+    import('../services/sync.service').then(m => {
+      const syncService = this.injector.get(m.SyncService);
+      syncService.triggerSync();
     });
   }
 }

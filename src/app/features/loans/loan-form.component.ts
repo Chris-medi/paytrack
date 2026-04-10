@@ -125,7 +125,7 @@ export class LoanFormComponent {
     totalAmount: null,
     monthlyInterest: 5,
     totalInstallments: 1,
-    firstDueDate: new Date().toISOString().split('T')[0] // today string format yyyy-mm-dd
+    firstDueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0] // por default dejar para el proximo mes
   });
 
   errors = signal<Record<string, string>>({});
@@ -160,7 +160,7 @@ export class LoanFormComponent {
 
   validateForm() {
     const data = this.formData();
-    
+
     // Preparar payload para zod validation (transforming strings to Dates)
     const payloadToValidate = {
       ...data,
@@ -171,7 +171,7 @@ export class LoanFormComponent {
     };
 
     const result = loanSchema.safeParse(payloadToValidate);
-    
+
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.issues.forEach(issue => {
@@ -188,7 +188,7 @@ export class LoanFormComponent {
     if (!this.isValid()) return;
 
     const data = this.formData();
-    
+
     const newLoan: Loan = {
       borrowerName: data.borrowerName,
       borrowerDocument: String(data.borrowerDocument),
