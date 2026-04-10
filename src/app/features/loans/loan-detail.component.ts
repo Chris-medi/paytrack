@@ -217,17 +217,33 @@ export class LoanDetailComponent implements OnInit {
   }
 
   async submitPayment() {
-    if (!this.loanId || !this.paymentAmount()) return;
+    const currentLoan = this.loan();
+    if (!this.loanId || !this.paymentAmount() || !currentLoan) return;
 
     const amount = Number(this.paymentAmount());
     if (amount <= 0) return;
 
-    await this.paymentStore.addPayment({
+    const newPayment = {
       loanId: this.loanId,
       amount: amount,
       date: new Date(),
       note: this.paymentNote()
-    });
+    };
+
+    // Registrar el pago
+    await this.paymentStore.addPayment(newPayment);
+
+    // Calcular y actualizar la próxima fecha de pago en el préstamo
+    const updatedPayments = [...this.payments()];
+    const newNextDueDate = LoanCalculator.getNextDueDate(currentLoan, updatedPayments);
+
+    const updatedLoan = {
+      ...currentLoan,
+      nextDueDate: newNextDueDate,
+      status: LoanCalculator.determineStatus(currentLoan, updatedPayments)
+    };
+
+    await this.loanStore.updateLoan(updatedLoan);
 
     this.isPaymentModalOpen.set(false);
     this.paymentAmount.set(null);

@@ -37,4 +37,20 @@ export class LoanRepository {
     // We can try to sync immediately if online, but that logic usually goes to a SyncService
     return loanId;
   }
+
+  async updateLoan(loan: Loan, networkStatus: NetworkStatus): Promise<void> {
+    if (!loan.id) return;
+
+    // 1. Update locally
+    await db.loans.update(loan.id, loan);
+
+    // 2. Queue for sync
+    await db.syncQueue.add({
+      collection: 'loans',
+      operation: 'update',
+      payload: loan,
+      status: 'pending',
+      createdAt: new Date()
+    });
+  }
 }

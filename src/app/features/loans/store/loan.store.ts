@@ -52,6 +52,21 @@ export const LoanStore = signalStore(
       }
     },
 
+    async updateLoan(loan: Loan) {
+      patchState(store, { loading: true });
+      try {
+        await loanRepo.updateLoan(loan, appStore.networkStatus());
+        // Optimistic update
+        patchState(store, (state) => ({
+          loans: state.loans.map(l => l.id === loan.id ? loan : l),
+          loading: false
+        }));
+      } catch (error) {
+        console.error("Failed to update loan", error);
+        patchState(store, { loading: false });
+      }
+    },
+
     selectLoan(loan: Loan | null) {
       patchState(store, { selectedLoan: loan });
     }
