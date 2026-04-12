@@ -1,10 +1,11 @@
 import { Component } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { VoiceAssistantComponent } from '../shared/components/voice-assistant.component';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, VoiceAssistantComponent],
   template: `
     <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 pb-16">
       <!-- Navbar superior (opcional o específica de pantalla) -->
@@ -43,6 +44,9 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 
         </div>
       </nav>
+
+      <!-- Asistente de Voz Global -->
+      <app-voice-assistant />
     </div>
   `
 })

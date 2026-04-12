@@ -167,6 +167,17 @@ export class LoanDetailComponent implements OnInit {
     if (this.loanId) {
       this.paymentStore.loadPayments(this.loanId);
     }
+
+    // Check for payment amount in query params
+    this.route.queryParams.subscribe(params => {
+      if (params['amount']) {
+        const amount = Number(params['amount']);
+        if (!isNaN(amount) && amount > 0) {
+          this.paymentAmount.set(amount);
+          this.isPaymentModalOpen.set(true);
+        }
+      }
+    });
   }
 
   // Computed Values based on Signals

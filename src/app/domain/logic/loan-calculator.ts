@@ -2,7 +2,7 @@ import { Loan, LoanStatus } from '../models/loan.model';
 import { Payment } from '../models/payment.model';
 
 export class LoanCalculator {
-  
+
   static calculateTotalPaid(payments: Payment[]): number {
     return payments.reduce((acc, current) => acc + current.amount, 0);
   }
@@ -34,7 +34,7 @@ export class LoanCalculator {
     if (paidInstallments >= loan.totalInstallments) {
       return loan.nextDueDate; // Or we could return a null/undefined logic
     }
-    
+
     // Simplification: assume installments are exactly monthly
     const nextDate = new Date(loan.firstDueDate);
     nextDate.setMonth(nextDate.getMonth() + paidInstallments);
@@ -46,16 +46,48 @@ export class LoanCalculator {
    */
   static determineStatus(loan: Loan, payments: Payment[], currentDate: Date = new Date()): LoanStatus {
     const balance = this.calculateRemainingBalance(loan, payments);
-    
+
     if (balance <= 0) {
       return 'paid';
     }
 
     const nextDue = this.getNextDueDate(loan, payments);
-    if (currentDate > nextDue) {
+
+    // Normalizar fechas para comparar solo día, mes y año
+    const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const due = new Date(nextDue.getFullYear(), nextDue.getMonth(), nextDue.getDate());
+
+    if (today > due) {
       return 'late';
     }
 
     return 'active';
+  }
+
+  /**
+   * Version simplificada para usar en listas donde no tenemos todos los pagos cargados.
+   * Calcula el estado basándose enteramente en fechas y el plan de pagos.
+   */
+  static getDynamicStatus(loan: Loan, currentDate: Date = new Date()): LoanStatus {
+    // Calculamos cuántas cuotas se han pagado según la fecha de próximo pago
+    const firstDue = new Date(loan.firstDueDate);
+    const nextDue = new Date(loan.nextDueDate);
+
+    // Diferencia en meses aproximada
+    const monthsPaid = (nextDue.getFullYear() - firstDue.getFullYear()) * 12 + (nextDue.getMonth() - firstDue.getMonth());
+
+    // Si ya se pagaron todas las cuotas (o más), es 'paid'
+    if (monthsPaid >= loan.totalInstallments) {
+      return 'paid';
+    }
+
+    // Normalizar fechas para comparar solo día, mes y año
+    const today = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const due = new Date(nextDue.getFullYear(), nextDue.getMonth(), nextDue.getDate());
+
+    if (today > due) {
+      return 'late';
+    }
+    return loan.status;
   }
 }

@@ -5,6 +5,7 @@ import { SyncService } from './data/services/sync.service';
 import { onAuthStateChanged } from 'firebase/auth';
 import { FirebaseService } from './core/firebase/firebase.service';
 
+
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],

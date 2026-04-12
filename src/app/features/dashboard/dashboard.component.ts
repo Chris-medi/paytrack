@@ -15,7 +15,7 @@ import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
       <!-- Greeting and Network status -->
       <header class="pt-2">
         <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100">
-          Hola, {{ appStore.user()?.displayName?.split(' ')[0] || 'Usuario' }}
+          Hola, {{ appStore.user()?.displayName || 'Invitado' }}
         </h2>
         <div class="flex items-center gap-2 mt-1">
           <span class="relative flex h-2.5 w-2.5">

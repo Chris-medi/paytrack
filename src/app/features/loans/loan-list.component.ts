@@ -1,8 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LoanStore } from './store/loan.store';
+import { LoanCalculator } from '../../domain/logic/loan-calculator';
+import { Loan } from '../../domain/models/loan.model';
 
 @Component({
   selector: 'app-loan-list',
@@ -77,11 +79,11 @@ import { LoanStore } from './store/loan.store';
                 
                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
                       [ngClass]="{
-                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400': loan.status === 'active',
-                        'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400': loan.status === 'late',
-                        'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300': loan.status === 'paid'
+                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400': getStatus(loan) === 'active',
+                        'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400': getStatus(loan) === 'late',
+                        'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300': getStatus(loan) === 'paid'
                       }">
-                  {{ loan.status === 'late' ? 'Mora' : (loan.status === 'paid' ? 'Pagado' : 'Activo') }}
+                  {{ getStatus(loan) === 'late' ? 'Mora' : (getStatus(loan) === 'paid' ? 'Pagado' : 'Activo') }}
                 </span>
               </div>
 
@@ -117,10 +119,11 @@ import { LoanStore } from './store/loan.store';
 })
 export class LoanListComponent {
   loanStore = inject(LoanStore);
+  private route = inject(ActivatedRoute);
 
   // Filtros reactivos
   searchQuery = signal('');
-  statusFilter = signal('all'); 
+  statusFilter = signal('all');
   sortBy = signal('nextDueDate');
 
   filteredAndSortedLoans = computed(() => {
@@ -130,14 +133,14 @@ export class LoanListComponent {
     const sort = this.sortBy();
 
     if (query) {
-      result = result.filter(l => 
-        l.borrowerName.toLowerCase().includes(query) || 
+      result = result.filter(l =>
+        l.borrowerName.toLowerCase().includes(query) ||
         l.borrowerDocument.includes(query)
       );
     }
 
     if (status !== 'all') {
-      result = result.filter(l => l.status === status);
+      result = result.filter(l => this.getStatus(l) === status);
     }
 
     return result.sort((a, b) => {
@@ -159,5 +162,19 @@ export class LoanListComponent {
 
   ngOnInit() {
     this.loanStore.loadLoans();
+
+    // Sincronizar filtros con query params
+    this.route.queryParams.subscribe(params => {
+      if (params['search']) {
+        this.searchQuery.set(params['search']);
+      }
+      if (params['status']) {
+        this.statusFilter.set(params['status']);
+      }
+    });
+  }
+
+  getStatus(loan: Loan) {
+    return LoanCalculator.getDynamicStatus(loan);
   }
 }
