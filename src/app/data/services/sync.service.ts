@@ -42,6 +42,7 @@ export class SyncService {
 
   /**
    * Sincronización descendente (Firestore -> IndexedDB)
+   * Descarga TODOS los datos del usuario desde Firestore y los guarda localmente.
    */
   async syncDown() {
     const user = this.auth.currentUser;
@@ -51,6 +52,7 @@ export class SyncService {
 
     try {
       this.appStore.setIsSyncing(true);
+      console.log('[Sync] Starting syncDown for user:', user.uid);
 
       // 1. Obtener préstamos de Firestore
       const loansRef = collection(this.firestore, `users/${user.uid}/loans`);
@@ -60,7 +62,10 @@ export class SyncService {
         ...this.convertTimestampsToDate(d.data())
       }));
 
-      // Guardar en Dexie
+      console.log(`[Sync] Found ${remoteLoans.length} loans in Firestore`);
+
+      // Limpiar datos locales y reemplazar con los de Firestore
+      await db.loans.clear();
       if (remoteLoans.length > 0) {
         await db.loans.bulkPut(remoteLoans as any[]);
       }
@@ -73,16 +78,30 @@ export class SyncService {
         ...this.convertTimestampsToDate(d.data())
       }));
 
+      console.log(`[Sync] Found ${remotePayments.length} payments in Firestore`);
+
+      await db.payments.clear();
       if (remotePayments.length > 0) {
         await db.payments.bulkPut(remotePayments as any[]);
       }
 
+      console.log('[Sync] syncDown completed successfully');
+
     } catch (error) {
-      console.error('Error syncing down from Firestore:', error);
+      console.error('[Sync] Error syncing down from Firestore:', error);
     } finally {
       this.appStore.setIsSyncing(false);
-      this.loanStore.loadLoans(); // Refresh UI
+      // Refresh UI con los datos actualizados de IndexedDB
+      await this.loanStore.loadLoans();
     }
+  }
+
+  /**
+   * Sincronización completa: primero sube pendientes, luego descarga todo
+   */
+  async fullSync() {
+    await this.processSyncQueue(); // Subir cambios locales pendientes primero
+    await this.syncDown();         // Luego descargar todo de Firestore
   }
 
   /**
@@ -117,9 +136,10 @@ export class SyncService {
 
         // Marcar como procesado en la cola
         await db.syncQueue.update(item.id!, { status: 'synced' });
+        console.log(`[Sync] Synced ${item.operation} on ${item.collection}/${payload.id}`);
         
       } catch (error) {
-        console.error('Error procesando item de la cola', item, error);
+        console.error('[Sync] Error procesando item de la cola', item, error);
         // Si falla, se queda como pending para intentar luego
       }
     }
@@ -163,11 +183,11 @@ export class SyncService {
     return converted;
   }
 
-  // Poll cada minuto si la app está abierta y hay red
+  // Sync periódico: sube pendientes + descarga actualizaciones cada 60s
   private startPeriodicSync() {
     if (this.syncInterval) clearInterval(this.syncInterval);
     this.syncInterval = setInterval(() => {
-      this.processSyncQueue();
+      this.fullSync();
     }, 60000);
   }
 

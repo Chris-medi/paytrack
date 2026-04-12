@@ -36,9 +36,9 @@ export class AppComponent implements OnInit {
           photoURL: user.photoURL
         });
         
-        // Sync down upon fresh login
+        // Sync completo al detectar usuario autenticado
         if (navigator.onLine) {
-          await this.syncService.syncDown();
+          await this.syncService.fullSync();
         }
       } else {
         this.appStore.setUser(null);
