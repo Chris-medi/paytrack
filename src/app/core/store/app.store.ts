@@ -1,10 +1,11 @@
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
+import { User } from 'firebase/auth';
 
 
 export type NetworkStatus = 'online' | 'offline';
 
 export interface AppState {
-  user: any | null;
+  user: User | null;
   networkStatus: NetworkStatus;
   syncQueueLength: number;
   isSyncing: boolean;
@@ -21,7 +22,7 @@ export const AppStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
   withMethods((store) => ({
-    setUser(user: any | null) {
+    setUser(user: User | null) {
       patchState(store, { user });
     },
     setNetworkStatus(status: NetworkStatus) {

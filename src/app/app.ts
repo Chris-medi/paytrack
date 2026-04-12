@@ -20,12 +20,7 @@ export class App implements OnInit {
 
     onAuthStateChanged(this.firebaseService.auth, async (user) => {
       if (user) {
-        this.appStore.setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        });
+        this.appStore.setUser(user);
         await this.syncService.fullSync();
       } else {
         this.appStore.setUser(null);
