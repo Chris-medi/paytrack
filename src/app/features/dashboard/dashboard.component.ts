@@ -4,7 +4,6 @@ import { AppStore } from '../../core/store/app.store';
 import { LoanStore } from '../loans/store/loan.store';
 import { PaymentStore } from '../payments/store/payment.store';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { LoanCalculator } from '../../domain/logic/loan-calculator';
 
 @Component({
   selector: 'app-dashboard',
@@ -138,7 +137,7 @@ export class DashboardComponent implements OnInit {
   // Mocks computed for now (since PaymentStore only loads by loanId currently)
   // To optimize, the totalPending could be calculated via the loanStore directly if we maintain a 'balance' field.
   // For now, we approximate based on loan properties.
-  
+
   activeLoansCount = computed(() => {
     return this.loanStore.loans().filter(l => l.status === 'active' || l.status === 'late').length;
   });
@@ -149,7 +148,7 @@ export class DashboardComponent implements OnInit {
       // Ideal architecture: Loan keeps a running balance updated via cloud function or local trigger
       // So we assume loan.totalAmount is the remaining balance, or we calculate it. 
       // For this demo, let's just sum a dummy remaining value or the full installment amount.
-      return acc + (loan.totalInstallments * loan.installmentValue); 
+      return acc + (loan.totalInstallments * loan.installmentValue);
     }, 0);
   });
 

@@ -1,10 +1,10 @@
 import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
-import { inject } from '@angular/core';
+
 
 export type NetworkStatus = 'online' | 'offline';
 
 export interface AppState {
-  user: any | null; 
+  user: any | null;
   networkStatus: NetworkStatus;
   syncQueueLength: number;
   isSyncing: boolean;
@@ -12,7 +12,7 @@ export interface AppState {
 
 const initialState: AppState = {
   user: null,
-  networkStatus: 'online', 
+  networkStatus: 'online',
   syncQueueLength: 0,
   isSyncing: false
 };

@@ -1,7 +1,7 @@
 import { Injectable, effect, inject } from '@angular/core';
+import { collection, doc, setDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { dbReady } from '../local/app.database';
 import { FirebaseService } from '../../core/firebase/firebase.service';
-import { collection, doc, setDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { AppStore } from '../../core/store/app.store';
 import { LoanStore } from '../../features/loans/store/loan.store';
 
@@ -12,7 +12,6 @@ export class SyncService {
   private firebaseService = inject(FirebaseService);
 
   private firestore = this.firebaseService.firestore;
-  private auth = this.firebaseService.auth;
   private syncInterval: any;
   private isSyncing = false;
 
@@ -35,7 +34,7 @@ export class SyncService {
    * Trigger sync inmediato — llamado desde repositorios después de escribir a la cola
    */
   async triggerSync() {
-    if (this.appStore.networkStatus() === 'online' && this.auth.currentUser) {
+    if (this.appStore.networkStatus() === 'online' && this.appStore.user()) {
       await this.processSyncQueue();
     }
   }
@@ -45,7 +44,7 @@ export class SyncService {
    * Descarga TODOS los datos del usuario desde Firestore y los guarda localmente.
    */
   async syncDown() {
-    const user = this.auth.currentUser;
+    const user = this.appStore.user();
     if (!user) return;
 
     const db = await dbReady;
@@ -108,7 +107,7 @@ export class SyncService {
    * Sincronización ascendente (IndexedDB SyncQueue -> Firestore)
    */
   async processSyncQueue() {
-    const user = this.auth.currentUser;
+    const user = this.appStore.user();
     if (!user || this.isSyncing) return;
 
     this.isSyncing = true;
@@ -129,7 +128,7 @@ export class SyncService {
         // Set remote doc
         // Estructura: users/{userId}/{collection}/{itemId}
         const docRef = doc(this.firestore, `users/${user.uid}/${item.collection}`, payload.id);
-        
+
         if (item.operation === 'create' || item.operation === 'update') {
           await setDoc(docRef, payload, { merge: true });
         }
@@ -137,7 +136,7 @@ export class SyncService {
         // Marcar como procesado en la cola
         await db.syncQueue.update(item.id!, { status: 'synced' });
         console.log(`[Sync] Synced ${item.operation} on ${item.collection}/${payload.id}`);
-        
+
       } catch (error) {
         console.error('[Sync] Error procesando item de la cola', item, error);
         // Si falla, se queda como pending para intentar luego

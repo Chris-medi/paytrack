@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FirebaseService } from '../../core/firebase/firebase.service';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { AppStore } from '../../core/store/app.store';
 
 @Component({
   selector: 'app-login',
@@ -46,14 +47,16 @@ import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
   `
 })
 export class LoginComponent {
-  #router = inject(Router);
-  #firebaseService = inject(FirebaseService);
+  private router = inject(Router);
+  private appStore = inject(AppStore)
+  private firebaseService = inject(FirebaseService);
 
   async loginWithGoogle() {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(this.#firebaseService.auth, provider);
-      this.#router.navigate(['/dashboard']);
+      const result = await signInWithPopup(this.firebaseService.auth, provider);
+      this.appStore.setUser(result.user)
+      this.router.navigate(['/dashboard']);
     } catch (error) {
       console.error('Error logging in:', error);
       // alert('Error al iniciar sesión');
@@ -61,6 +64,6 @@ export class LoginComponent {
   }
 
   bypassLogin() {
-    this.#router.navigate(['/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }
