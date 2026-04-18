@@ -1,29 +1,10 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, effect } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { SupabaseService } from '../../core/supabase/supabase.service';
-
-interface PublicLoan {
-  id: string;
-  borrowerName: string;
-  borrowerLocation: string;
-  totalAmount: number;
-  monthlyInterest: number;
-  totalInstallments: number;
-  installmentValue: number;
-  startDate: Date;
-  firstDueDate: Date;
-  nextDueDate: Date;
-  status: string;
-  createdAt: Date;
-}
-
-interface PublicPayment {
-  id: string;
-  date: Date;
-  amount: number;
-  note?: string;
-}
+import { LoanCalculator, ScheduledInstallment } from '../../domain/logic/loan-calculator';
+import { Loan, LoanStatus } from '../../domain/models/loan.model';
+import { Payment } from '../../domain/models/payment.model';
 
 @Component({
   selector: 'app-public-loan',
@@ -91,8 +72,13 @@ interface PublicPayment {
           <div class="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-3xl p-6 text-white shadow-2xl shadow-emerald-500/20 mb-6 relative overflow-hidden">
             <div class="absolute -right-12 -top-12 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
             
-            <p class="text-emerald-100 text-xs uppercase tracking-widest font-semibold mb-2">Saldo Pendiente</p>
-            <h3 class="text-4xl font-bold tracking-tight mb-4">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h3>
+            <p class="text-emerald-100 text-xs uppercase tracking-widest font-semibold mb-2">Deuda Total Pendiente</p>
+            <h3 class="text-4xl font-bold tracking-tight mb-2">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h3>
+            
+            <div class="flex items-end gap-2 opacity-80 mb-4">
+              <h4 class="text-xl font-semibold tracking-tight">{{ capitalBalance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h4>
+              <p class="text-emerald-200 text-xs pb-0.5 font-medium">Saldo Capital</p>
+            </div>
             
             <div class="flex justify-between items-center border-t border-emerald-400/30 pt-4">
               <div>
@@ -109,27 +95,27 @@ interface PublicPayment {
           <!-- Stats Grid -->
           <div class="grid grid-cols-2 gap-3 mb-6">
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Valor Total</p>
-              <p class="text-lg font-bold text-white">{{ totalExpected() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Total Prestado</p>
+              <p class="text-lg font-bold text-white">{{ loan()!.principalAmount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Total Abonado</p>
-              <p class="text-lg font-bold text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Deuda Total Inicial</p>
+              <p class="text-lg font-bold text-slate-300">{{ loan()!.totalAmount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Cuotas Totales</p>
-              <p class="text-lg font-bold text-white">{{ loan()!.totalInstallments }}</p>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Capital Pagado</p>
+              <p class="text-lg font-bold text-emerald-400">{{ totalCapitalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Cuotas Pagadas</p>
-              <p class="text-lg font-bold text-emerald-400">{{ paidInstallments() }} <span class="text-sm text-slate-500">/ {{ loan()!.totalInstallments }}</span></p>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Interés Pagado</p>
+              <p class="text-lg font-bold text-emerald-400">{{ totalInterestPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
           </div>
 
           <!-- Progress Bar -->
           <div class="mb-8">
             <div class="flex justify-between text-xs text-slate-400 mb-2">
-              <span>Progreso</span>
+              <span>Progreso de Pagos</span>
               <span>{{ progressPercent() }}%</span>
             </div>
             <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700/50">
@@ -138,38 +124,127 @@ interface PublicPayment {
             </div>
           </div>
 
-          <!-- Payment History -->
-          <div>
-            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-              Historial de Pagos
-            </h3>
-            
-            <div class="flex flex-col gap-3">
-              @for (payment of payments(); track payment.id) {
-                <div class="bg-slate-800/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 flex justify-between items-center">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <div>
-                      <p class="text-sm font-semibold text-white">Pago recibido</p>
-                      <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
-                      @if (payment.note) {
-                        <p class="text-xs text-slate-400 mt-0.5 italic">{{ payment.note }}</p>
-                      }
-                    </div>
-                  </div>
-                  <p class="font-bold text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
-                </div>
-              }
+          <!-- Tabs for Schedule vs History -->
+          <div class="flex gap-4 mb-4 border-b border-slate-700">
+            <button (click)="activeTab.set('schedule')" [class.border-emerald-400]="activeTab() === 'schedule'" [class.text-emerald-400]="activeTab() === 'schedule'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-400 border-transparent transition-colors">Cronograma</button>
+            <button (click)="activeTab.set('history')" [class.border-emerald-400]="activeTab() === 'history'" [class.text-emerald-400]="activeTab() === 'history'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-400 border-transparent transition-colors">Historial</button>
+          </div>
 
-              @if (payments().length === 0) {
-                <div class="text-center py-8 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">
-                  <p class="text-sm text-slate-500">Sin pagos registrados aún.</p>
-                </div>
-              }
-            </div>
+          <!-- Tab Content -->
+          <div class="min-h-[300px]">
+          
+            <!-- Tab: Schedule -->
+            @if (activeTab() === 'schedule') {
+              <div class="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar">
+                @for (year of scheduleYears(); track year) {
+                  <button (click)="selectedYear.set(year)" 
+                    [ngClass]="year === selectedYear() ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-800 text-slate-300 border border-slate-700'"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold transition-all whitespace-nowrap">
+                    {{ year }}
+                  </button>
+                }
+              </div>
+
+              <div class="flex flex-col gap-3">
+                 @for (inst of currentYearSchedule(); track inst.number) {
+                   <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-sm relative overflow-hidden backdrop-blur-sm">
+                     <div class="absolute left-0 top-0 bottom-0 w-1"
+                       [ngClass]="{
+                         'bg-emerald-500': inst.status === 'paid',
+                         'bg-amber-500': inst.status === 'partial',
+                         'bg-slate-600': inst.status === 'pending',
+                         'bg-rose-500': inst.status === 'overdue'
+                       }"></div>
+                       
+                     <div class="flex justify-between items-center mb-3">
+                       <p class="font-bold text-sm text-slate-200">Cuota #{{ inst.number }} <span class="text-slate-500 font-medium ml-1">· {{ inst.dueDate | date:'MMM d' }}</span></p>
+                       <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                         [ngClass]="{
+                           'bg-emerald-500/20 text-emerald-400': inst.status === 'paid',
+                           'bg-amber-500/20 text-amber-400': inst.status === 'partial',
+                           'bg-slate-700 text-slate-400': inst.status === 'pending',
+                           'bg-rose-500/20 text-rose-400': inst.status === 'overdue'
+                         }">
+                         {{ inst.status === 'paid' ? 'Pagada' : (inst.status === 'partial' ? 'Parcial' : (inst.status === 'overdue' ? 'Atrasada' : 'Pendiente')) }}
+                       </span>
+                     </div>
+                     <div class="flex flex-col gap-2">
+                       <div class="flex justify-between text-xs items-center">
+                         <span class="text-slate-400">Capital</span>
+                         <div class="flex items-center gap-2">
+                           @if (inst.capitalPaid > 0) {
+                             <span class="text-emerald-400 font-bold">{{ inst.capitalPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                             <span class="text-slate-600">/</span>
+                           }
+                           <span class="text-slate-300 font-medium">{{ inst.capitalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                         </div>
+                       </div>
+                       <div class="flex justify-between text-xs items-center">
+                         <span class="text-slate-400">Interés</span>
+                         <div class="flex items-center gap-2">
+                           @if (inst.interestPaid > 0) {
+                             <span class="text-emerald-400 font-bold">{{ inst.interestPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                             <span class="text-slate-600">/</span>
+                           }
+                           <span class="text-slate-300 font-medium">{{ inst.interestDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                         </div>
+                       </div>
+                       <div class="h-px bg-slate-700/50 my-1"></div>
+                       <div class="flex justify-between text-sm items-center font-bold">
+                         <span class="text-slate-200">Total</span>
+                         <span class="text-slate-200">{{ inst.totalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                       </div>
+                     </div>
+                   </div>
+                 }
+                 @if (currentYearSchedule().length === 0) {
+                   <div class="text-center py-8 text-slate-500 text-sm">
+                     No hay cuotas programadas para este año.
+                   </div>
+                 }
+              </div>
+            }
+
+            <!-- Tab: History -->
+            @if (activeTab() === 'history') {
+              <div class="flex flex-col gap-3">
+                @for (payment of payments(); track payment.id) {
+                  <div class="bg-slate-800/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div>
+                          <p class="text-sm font-semibold text-white">Pago recibido</p>
+                          <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
+                        </div>
+                      </div>
+                      <p class="font-bold text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
+                    </div>
+                    
+                    <div class="bg-slate-900/50 rounded-lg p-2 mt-1 flex justify-between text-xs">
+                      <div class="text-slate-400">
+                        <span class="font-semibold text-slate-300">Capital:</span> {{ (payment.capitalAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
+                      </div>
+                      <div class="text-slate-400">
+                        <span class="font-semibold text-slate-300">Interés:</span> {{ (payment.interestAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
+                      </div>
+                    </div>
+
+                    @if (payment.note) {
+                      <p class="text-xs text-slate-400 px-1 mt-1 italic">{{ payment.note }}</p>
+                    }
+                  </div>
+                }
+
+                @if (payments().length === 0) {
+                  <div class="text-center py-8 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">
+                    <p class="text-sm text-slate-500">Sin pagos registrados aún.</p>
+                  </div>
+                }
+              </div>
+            }
           </div>
 
           <!-- Footer Branding -->
@@ -193,10 +268,27 @@ export class PublicLoanComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private supabaseService = inject(SupabaseService);
 
-  loan = signal<PublicLoan | null>(null);
-  payments = signal<PublicPayment[]>([]);
+  loan = signal<Loan | null>(null);
+  payments = signal<Payment[]>([]);
   loading = signal(true);
   error = signal(false);
+
+  activeTab = signal<'schedule' | 'history'>('schedule');
+  selectedYear = signal<number>(new Date().getFullYear());
+
+  constructor() {
+    effect(() => {
+      const years = this.scheduleYears();
+      if (years.length > 0 && !years.includes(this.selectedYear())) {
+        const currentY = new Date().getFullYear();
+        if (years.includes(currentY)) {
+          this.selectedYear.set(currentY);
+        } else {
+          this.selectedYear.set(years[0]);
+        }
+      }
+    }, { allowSignalWrites: true });
+  }
 
   async ngOnInit() {
     const loanId = this.route.snapshot.paramMap.get('id');
@@ -224,30 +316,38 @@ export class PublicLoanComponent implements OnInit {
         id: loanData.id,
         borrowerName: loanData.borrower_name,
         borrowerLocation: loanData.borrower_location,
+        borrowerPhone: loanData.borrower_phone,
+        principalAmount: Number(loanData.principal_amount || loanData.total_amount),
         totalAmount: Number(loanData.total_amount),
         monthlyInterest: Number(loanData.monthly_interest),
+        annualInterest: Number(loanData.annual_interest),
         totalInstallments: Number(loanData.total_installments),
         installmentValue: Number(loanData.installment_value),
         startDate: new Date(loanData.start_date),
         firstDueDate: new Date(loanData.first_due_date),
         nextDueDate: new Date(loanData.next_due_date),
-        status: loanData.status,
+        status: loanData.status as LoanStatus,
         createdAt: new Date(loanData.created_at),
       });
 
       // Fetch payments for this loan
       const { data: paymentsData, error: paymentsError } = await this.supabaseService.supabase
         .from('payments')
-        .select('id, date, amount, note')
+        .select('id, loan_id, user_id, date, amount, interest_amount, capital_amount, note, receipt_url')
         .eq('loan_id', loanId)
         .order('date', { ascending: false });
 
       if (!paymentsError && paymentsData) {
         this.payments.set(paymentsData.map(p => ({
           id: p.id,
+          loanId: p.loan_id,
+          userId: p.user_id,
           date: new Date(p.date),
           amount: Number(p.amount),
+          interestAmount: Number(p.interest_amount || 0),
+          capitalAmount: Number(p.capital_amount !== undefined && p.capital_amount !== null ? p.capital_amount : p.amount),
           note: p.note,
+          receiptUrl: p.receipt_url,
         })));
       }
     } catch (err) {
@@ -259,53 +359,59 @@ export class PublicLoanComponent implements OnInit {
   }
 
   // Computed values
-  totalExpected = computed(() => {
-    const l = this.loan();
-    if (!l) return 0;
-    return Number((l.totalInstallments * l.installmentValue).toFixed(2));
-  });
-
-  totalPaid = computed(() => {
-    return Number(this.payments().reduce((acc, p) => acc + p.amount, 0).toFixed(2));
-  });
+  totalPaid = computed(() => LoanCalculator.calculateTotalPaid(this.payments()));
+  totalInterestPaid = computed(() => LoanCalculator.calculateTotalInterestPaid(this.payments()));
+  totalCapitalPaid = computed(() => LoanCalculator.calculateTotalCapitalPaid(this.payments()));
 
   balance = computed(() => {
-    return Number((this.totalExpected() - this.totalPaid()).toFixed(2));
+    const l = this.loan();
+    if (!l) return 0;
+    return LoanCalculator.calculateRemainingBalance(l, this.payments());
+  });
+
+  capitalBalance = computed(() => {
+    const l = this.loan();
+    if (!l) return 0;
+    return LoanCalculator.calculateRemainingCapital(l, this.payments());
   });
 
   paidInstallments = computed(() => {
     const l = this.loan();
     if (!l) return 0;
-    return Math.floor(this.totalPaid() / l.installmentValue);
+    return LoanCalculator.calculatePaidInstallments(l, this.payments());
   });
 
   nextDueDate = computed(() => {
     const l = this.loan();
     if (!l) return new Date();
-    const paid = this.paidInstallments();
-    if (paid >= l.totalInstallments) return l.nextDueDate;
-    const nextDate = new Date(l.firstDueDate);
-    nextDate.setMonth(nextDate.getMonth() + paid);
-    return nextDate;
+    return LoanCalculator.getNextDueDate(l, this.payments());
   });
 
   currentStatus = computed(() => {
     const l = this.loan();
     if (!l) return 'active';
-    const bal = this.balance();
-    if (bal <= 0) return 'paid';
+    return LoanCalculator.determineStatus(l, this.payments());
+  });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(this.nextDueDate());
-    due.setHours(0, 0, 0, 0);
+  schedule = computed(() => {
+    const l = this.loan();
+    if (!l) return [];
+    return LoanCalculator.generateInstallmentSchedule(l, this.payments());
+  });
 
-    if (today > due) return 'late';
-    return 'active';
+  scheduleYears = computed(() => {
+    return LoanCalculator.getScheduleYears(this.schedule());
+  });
+
+  currentYearSchedule = computed(() => {
+    const y = this.selectedYear();
+    return this.schedule().filter(inst => new Date(inst.dueDate).getFullYear() === y);
   });
 
   progressPercent = computed(() => {
-    const total = this.totalExpected();
+    const l = this.loan();
+    if (!l) return 0;
+    const total = l.totalAmount;
     if (total <= 0) return 0;
     return Math.min(100, Math.round((this.totalPaid() / total) * 100));
   });

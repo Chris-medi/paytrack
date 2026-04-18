@@ -1,9 +1,9 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, effect } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe, Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { LoanStore } from './store/loan.store';
 import { PaymentStore } from '../payments/store/payment.store';
-import { LoanCalculator } from '../../domain/logic/loan-calculator';
+import { LoanCalculator, ScheduledInstallment } from '../../domain/logic/loan-calculator';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../environments/environment';
 
@@ -47,9 +47,15 @@ import { environment } from '../../../environments/environment';
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             {{ loan()?.borrowerLocation }}
           </p>
-          <div class="flex items-end gap-2 mb-6">
-            <h1 class="text-4xl font-bold tracking-tight">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h1>
-            <p class="text-emerald-200 text-sm pb-1 font-medium">Saldo</p>
+          <div class="flex flex-col gap-1 mb-6">
+            <div class="flex items-end gap-2">
+              <h1 class="text-4xl font-bold tracking-tight">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h1>
+              <p class="text-emerald-200 text-sm pb-1 font-medium">Deuda Total</p>
+            </div>
+            <div class="flex items-end gap-2 opacity-80">
+              <h2 class="text-xl font-semibold tracking-tight">{{ capitalBalance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h2>
+              <p class="text-emerald-200 text-xs pb-0.5 font-medium">Saldo Capital</p>
+            </div>
           </div>
 
           <div class="flex justify-between items-center border-t border-emerald-400/30 pt-4">
@@ -69,81 +75,191 @@ import { environment } from '../../../environments/environment';
       <!-- Stats Grid -->
       <div class="px-4 grid grid-cols-2 gap-3 mb-6">
         <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm text-center">
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Progreso</p>
-          <p class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ paidInstallments() }} / {{ loan()?.totalInstallments }}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Capital Abonado</p>
+          <p class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ totalCapitalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
         </div>
         <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm text-center">
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Abonado</p>
-          <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Interés Pagado</p>
+          <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ totalInterestPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
         </div>
       </div>
 
-      <!-- Historial de Pagos -->
+      <!-- Tabs for Cronograma vs Historial -->
+      <div class="px-4 flex gap-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+        <button (click)="activeTab.set('schedule')" [class.border-emerald-500]="activeTab() === 'schedule'" [class.text-emerald-500]="activeTab() === 'schedule'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-500 border-transparent transition-colors">Cronograma</button>
+        <button (click)="activeTab.set('history')" [class.border-emerald-500]="activeTab() === 'history'" [class.text-emerald-500]="activeTab() === 'history'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-500 border-transparent transition-colors">Historial</button>
+      </div>
+
       <div class="px-4 flex-1">
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Historial de Pagos</h3>
         
-        <div class="flex flex-col gap-3">
-          @if (paymentStore.loading()) {
-            <div class="text-center py-4">
-              <span class="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full inline-block"></span>
-            </div>
-          }
+        <!-- Tab: Schedule -->
+        @if (activeTab() === 'schedule') {
+          <!-- Selector de Año -->
+          <div class="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
+            @for (year of scheduleYears(); track year) {
+              <button (click)="selectedYear.set(year)" 
+                [ngClass]="year === selectedYear() ? 'bg-emerald-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'"
+                class="px-4 py-1.5 rounded-full text-sm font-bold transition-all whitespace-nowrap">
+                {{ year }}
+              </button>
+            }
+          </div>
 
-          @for (payment of paymentStore.payments(); track payment.id) {
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                <div>
-                  <p class="text-sm font-semibold text-slate-800 dark:text-white">Pago recibido</p>
-                  <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
-                </div>
+          <!-- Schedule list -->
+          <div class="flex flex-col gap-3">
+             @for (inst of currentYearSchedule(); track inst.number) {
+               <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                 <!-- Status color line indicator -->
+                 <div class="absolute left-0 top-0 bottom-0 w-1"
+                   [ngClass]="{
+                     'bg-emerald-500': inst.status === 'paid',
+                     'bg-amber-500': inst.status === 'partial',
+                     'bg-slate-300 dark:bg-slate-600': inst.status === 'pending',
+                     'bg-rose-500': inst.status === 'overdue'
+                   }"></div>
+                   
+                 <div class="flex justify-between items-center mb-3">
+                   <p class="font-bold text-sm text-slate-800 dark:text-slate-200">Cuota #{{ inst.number }} <span class="text-slate-500 font-medium ml-1">· {{ inst.dueDate | date:'MMM d' }}</span></p>
+                   <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                     [ngClass]="{
+                       'bg-emerald-100 text-emerald-700': inst.status === 'paid',
+                       'bg-amber-100 text-amber-700': inst.status === 'partial',
+                       'bg-slate-100 text-slate-600': inst.status === 'pending',
+                       'bg-rose-100 text-rose-700': inst.status === 'overdue'
+                     }">
+                     {{ inst.status === 'paid' ? 'Pagada' : (inst.status === 'partial' ? 'Parcial' : (inst.status === 'overdue' ? 'Atrasada' : 'Pendiente')) }}
+                   </span>
+                 </div>
+                 <div class="flex flex-col gap-2">
+                   <div class="flex justify-between text-xs items-center">
+                     <span class="text-slate-500">Capital</span>
+                     <div class="flex items-center gap-2">
+                       @if (inst.capitalPaid > 0) {
+                         <span class="text-emerald-600 font-bold">{{ inst.capitalPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                         <span class="text-slate-300 dark:text-slate-600">/</span>
+                       }
+                       <span class="text-slate-700 dark:text-slate-300 font-medium">{{ inst.capitalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                     </div>
+                   </div>
+                   <div class="flex justify-between text-xs items-center">
+                     <span class="text-slate-500">Interés</span>
+                     <div class="flex items-center gap-2">
+                       @if (inst.interestPaid > 0) {
+                         <span class="text-emerald-600 font-bold">{{ inst.interestPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                         <span class="text-slate-300 dark:text-slate-600">/</span>
+                       }
+                       <span class="text-slate-700 dark:text-slate-300 font-medium">{{ inst.interestDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                     </div>
+                   </div>
+                   <div class="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                   <div class="flex justify-between text-sm items-center font-bold">
+                     <span class="text-slate-800 dark:text-slate-200">Total</span>
+                     <span class="text-slate-800 dark:text-slate-200">{{ inst.totalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                   </div>
+                 </div>
+               </div>
+             }
+             @if (currentYearSchedule().length === 0) {
+               <div class="text-center py-8 text-slate-500 text-sm">
+                 No hay cuotas programadas para este año.
+               </div>
+             }
+          </div>
+        }
+
+        <!-- Tab: History -->
+        @if (activeTab() === 'history') {
+          <div class="flex flex-col gap-3">
+            @if (paymentStore.loading()) {
+              <div class="text-center py-4">
+                <span class="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full inline-block"></span>
               </div>
-              <p class="font-bold text-emerald-600 dark:text-emerald-400">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
-            </div>
-          }
+            }
 
-          @if (paymentStore.payments().length === 0 && !paymentStore.loading()) {
-            <div class="text-center py-8 opacity-50">
-              <p class="text-sm">Aún no hay pagos registrados.</p>
-            </div>
-          }
-        </div>
+            @for (payment of paymentStore.payments(); track payment.id) {
+              <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                <div class="flex justify-between items-start">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-slate-800 dark:text-white">Pago recibido</p>
+                      <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
+                    </div>
+                  </div>
+                  <p class="font-bold text-emerald-600 dark:text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 mt-1 flex justify-between text-xs">
+                  <div class="text-slate-600 dark:text-slate-400">
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">Capital:</span> {{ (payment.capitalAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
+                  </div>
+                  <div class="text-slate-600 dark:text-slate-400">
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">Interés:</span> {{ (payment.interestAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
+                    {{payment.interestAmount}}
+                  </div>
+                </div>
+
+                @if (payment.note) {
+                  <p class="text-xs text-slate-500 italic px-1 mt-1">{{ payment.note }}</p>
+                }
+              </div>
+            }
+
+            @if (paymentStore.payments().length === 0 && !paymentStore.loading()) {
+              <div class="text-center py-8 opacity-50">
+                <p class="text-sm">Aún no hay pagos registrados.</p>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- Modals and Overlays -->
       <!-- Add Payment Modal -->
       @if (isPaymentModalOpen()) {
-        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative animate-in slide-in-from-bottom flex flex-col gap-4">
-            <button (click)="isPaymentModalOpen.set(false)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <button (click)="isPaymentModalOpen.set(false)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 dark:bg-slate-700 rounded-full p-1 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
             
             <h2 class="text-xl font-bold dark:text-white mb-2">Registrar Pago</h2>
             
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Monto del abono</label>
-              <div class="relative">
+              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                Abono a Interés <span class="lowercase text-[10px]">(mensual provisto: {{ monthlyInterestAmount() | currency:'COP':'symbol-narrow':'1.2-2' }})</span>
+              </label>
+              <div class="relative mb-4">
                 <span class="absolute inset-y-0 left-3 flex items-center font-bold text-slate-400">$</span>
-                <input type="text" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" 
-                       class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white">
+                <input type="number" [ngModel]="paymentInterest()" (ngModelChange)="paymentInterest.set($event)" 
+                       class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white transition-colors" placeholder="0">
               </div>
-              <div class="flex justify-between mt-1 px-1">
-                <span class="text-[10px] text-slate-400">Cuota: {{ loan()?.installmentValue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                <span class="text-[10px] text-slate-400">Saldo: {{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+
+              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                Abono a Capital <span class="lowercase text-[10px]">(saldo: {{ capitalBalance() | currency:'COP':'symbol-narrow':'1.2-2' }})</span>
+              </label>
+              <div class="relative mb-2">
+                <span class="absolute inset-y-0 left-3 flex items-center font-bold text-slate-400">$</span>
+                <input type="number" [ngModel]="paymentCapital()" (ngModelChange)="paymentCapital.set($event)" 
+                       class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white transition-colors" placeholder="0">
+              </div>
+              
+              <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total a pagar</span>
+                <span class="font-bold text-emerald-500 text-2xl">{{ totalPaymentAmount() | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
               </div>
             </div>
             
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Notas (Opcional)</label>
               <textarea [ngModel]="paymentNote()" (ngModelChange)="paymentNote.set($event)" rows="2" 
-                        class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 dark:text-white text-sm"></textarea>
+                        class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 dark:text-white text-sm transition-colors"></textarea>
             </div>
 
-            <button (click)="submitPayment()" class="w-full bg-emerald-500 text-white font-bold py-3.5 rounded-xl mt-2 active:scale-95 transition-transform" [disabled]="!paymentAmount()">
-              Confirmar Pago
+            <button (click)="submitPayment()" class="w-full bg-emerald-500 text-white font-bold py-3.5 rounded-xl mt-2 active:scale-95 transition-transform disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-emerald-500/20" [disabled]="totalPaymentAmount() <= 0 || loadingSubmit()">
+              {{ loadingSubmit() ? 'Procesando...' : 'Confirmar Pago' }}
             </button>
           </div>
         </div>
@@ -153,7 +269,7 @@ import { environment } from '../../../environments/environment';
       @if (currentStatus() !== 'paid') {
         <div class="fixed bottom-19 right-6 lg:bottom-19 lg:right-1/3 flex flex-col gap-3 z-20">
           <button (click)="openPaymentModal()"
-                  class="bg-slate-900 dark:bg-emerald-500 text-white rounded-full p-4 shadow-xl shadow-slate-900/20 dark:shadow-emerald-500/20 active:scale-90 transition-transform flex items-center gap-2 pr-6">
+                  class="bg-slate-900 dark:bg-emerald-500 text-white rounded-full p-4 shadow-xl shadow-slate-900/20 dark:shadow-emerald-500/20 active:scale-90 transition-transform flex items-center gap-2 pr-6 border border-slate-800 dark:border-emerald-400">
             <svg class="w-6 h-6 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
             <span class="font-bold">Abonar</span>
           </button>
@@ -174,8 +290,29 @@ export class LoanDetailComponent implements OnInit {
 
   // UI States
   isPaymentModalOpen = signal(false);
-  paymentAmount = signal<number | null>(null);
+  paymentInterest = signal<number | null>(null);
+  paymentCapital = signal<number | null>(null);
   paymentNote = signal('');
+  loadingSubmit = signal(false);
+
+  activeTab = signal<'schedule' | 'history'>('schedule');
+  selectedYear = signal<number>(new Date().getFullYear());
+
+  constructor() {
+    // Escuchar cambios en los años del cronograma para auto-seleccionar el año más reciente (o actual)
+    effect(() => {
+      const years = this.scheduleYears();
+      if (years.length > 0 && !years.includes(this.selectedYear())) {
+        // Find current year or closest
+        const currentY = new Date().getFullYear();
+        if (years.includes(currentY)) {
+          this.selectedYear.set(currentY);
+        } else {
+          this.selectedYear.set(years[0]);
+        }
+      }
+    }, { allowSignalWrites: true });
+  }
 
   ngOnInit() {
     this.loanId = this.route.snapshot.paramMap.get('id');
@@ -184,17 +321,28 @@ export class LoanDetailComponent implements OnInit {
     }
     if (this.loanId) {
       this.paymentStore.loadPayments(this.loanId);
+      console.log(this.paymentStore.payments())
     }
 
-    // Check for payment amount in query params
+
+    // Check for payment amounts in query params
     this.route.queryParams.subscribe(params => {
-      if (params['amount']) {
-        const amount = Number(params['amount']);
-        if (!isNaN(amount) && amount > 0) {
-          this.paymentAmount.set(amount);
-          this.isPaymentModalOpen.set(true);
+      let opened = false;
+      if (params['interest']) {
+        const intAmt = Number(params['interest']);
+        if (!isNaN(intAmt) && intAmt >= 0) {
+          this.paymentInterest.set(intAmt);
+          opened = true;
         }
       }
+      if (params['capital']) {
+        const capAmt = Number(params['capital']);
+        if (!isNaN(capAmt) && capAmt >= 0) {
+          this.paymentCapital.set(capAmt);
+          opened = true;
+        }
+      }
+      if (opened) this.isPaymentModalOpen.set(true);
     });
   }
 
@@ -205,14 +353,20 @@ export class LoanDetailComponent implements OnInit {
 
   payments = computed(() => this.paymentStore.payments());
 
-  totalPaid = computed(() => {
-    return LoanCalculator.calculateTotalPaid(this.payments());
-  });
+  totalPaid = computed(() => LoanCalculator.calculateTotalPaid(this.payments()));
+  totalInterestPaid = computed(() => LoanCalculator.calculateTotalInterestPaid(this.payments()));
+  totalCapitalPaid = computed(() => LoanCalculator.calculateTotalCapitalPaid(this.payments()));
 
   balance = computed(() => {
     const l = this.loan();
     if (!l) return 0;
     return LoanCalculator.calculateRemainingBalance(l, this.payments());
+  });
+
+  capitalBalance = computed(() => {
+    const l = this.loan();
+    if (!l) return 0;
+    return LoanCalculator.calculateRemainingCapital(l, this.payments());
   });
 
   paidInstallments = computed(() => {
@@ -233,6 +387,32 @@ export class LoanDetailComponent implements OnInit {
     return LoanCalculator.determineStatus(l, this.payments());
   });
 
+  monthlyInterestAmount = computed(() => {
+    const l = this.loan();
+    if (!l) return 0;
+    return LoanCalculator.calculateMonthlyInterestAmount(l);
+  });
+
+  // Schedule computeds
+  schedule = computed(() => {
+    const l = this.loan();
+    if (!l) return [];
+    return LoanCalculator.generateInstallmentSchedule(l, this.payments());
+  });
+
+  scheduleYears = computed(() => {
+    return LoanCalculator.getScheduleYears(this.schedule());
+  });
+
+  currentYearSchedule = computed(() => {
+    const y = this.selectedYear();
+    return this.schedule().filter(inst => new Date(inst.dueDate).getFullYear() === y);
+  });
+
+  totalPaymentAmount = computed(() => {
+    return (Number(this.paymentInterest()) || 0) + (Number(this.paymentCapital()) || 0);
+  });
+
   publicUrl = computed(() => {
     return `${environment.publicBaseUrl}/public/loan/${this.loanId}`;
   });
@@ -243,8 +423,10 @@ export class LoanDetailComponent implements OnInit {
 
   openPaymentModal() {
     if (this.loan()) {
-      // Suggest installment value
-      this.paymentAmount.set(this.loan()!.installmentValue);
+      // Suggest monthly interest by default
+      const monthlyInt = this.monthlyInterestAmount();
+      this.paymentInterest.set(monthlyInt);
+      this.paymentCapital.set(0);
     }
     this.isPaymentModalOpen.set(true);
   }
@@ -255,9 +437,9 @@ export class LoanDetailComponent implements OnInit {
 
     const url = this.publicUrl();
     const message = `Hola ${loan.borrowerName}, aquí puedes ver el estado de tu préstamo:\n\n` +
-      `💰 Saldo pendiente: $${this.balance().toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
+      `💰 Saldo capital: $${this.capitalBalance().toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
       `📅 Próximo pago: ${this.nextDueDate().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}\n\n` +
-      `🔗 Ver detalles completos:\n${url}`;
+      `🔗 Ver detalles completos y cronograma:\n${url}`;
 
     const phone = loan.borrowerPhone || '';
     const whatsappUrl = phone
@@ -269,35 +451,46 @@ export class LoanDetailComponent implements OnInit {
 
   async submitPayment() {
     const currentLoan = this.loan();
-    if (!this.loanId || !this.paymentAmount() || !currentLoan) return;
+    const total = this.totalPaymentAmount();
+    if (!this.loanId || total <= 0 || !currentLoan) return;
 
-    const amount = Number(this.paymentAmount());
-    if (amount <= 0) return;
+    this.loadingSubmit.set(true);
+
+    const intAmt = Number(this.paymentInterest()) || 0;
+    const capAmt = Number(this.paymentCapital()) || 0;
 
     const newPayment = {
       loanId: this.loanId,
-      amount: amount,
+      amount: total,
+      interestAmount: intAmt,
+      capitalAmount: capAmt,
       date: new Date(),
       note: this.paymentNote()
     };
 
-    // Registrar el pago
-    await this.paymentStore.addPayment(newPayment);
+    try {
+      // Registrar el pago
+      await this.paymentStore.addPayment(newPayment);
 
-    // Calcular y actualizar la próxima fecha de pago en el préstamo
-    const updatedPayments = [...this.payments()];
-    const newNextDueDate = LoanCalculator.getNextDueDate(currentLoan, updatedPayments);
+      // Recalcular estado basado en el cronograma
+      // Usamos el listado actualizado de pagos
+      const updatedPayments = [...this.payments(), newPayment];
+      const newNextDueDate = LoanCalculator.getNextDueDate(currentLoan, updatedPayments);
 
-    const updatedLoan = {
-      ...currentLoan,
-      nextDueDate: newNextDueDate,
-      status: LoanCalculator.determineStatus(currentLoan, updatedPayments)
-    };
+      const updatedLoan = {
+        ...currentLoan,
+        nextDueDate: newNextDueDate,
+        status: LoanCalculator.determineStatus(currentLoan, updatedPayments)
+      };
 
-    await this.loanStore.updateLoan(updatedLoan);
+      await this.loanStore.updateLoan(updatedLoan);
 
-    this.isPaymentModalOpen.set(false);
-    this.paymentAmount.set(null);
-    this.paymentNote.set('');
+      this.isPaymentModalOpen.set(false);
+      this.paymentInterest.set(null);
+      this.paymentCapital.set(null);
+      this.paymentNote.set('');
+    } finally {
+      this.loadingSubmit.set(false);
+    }
   }
 }

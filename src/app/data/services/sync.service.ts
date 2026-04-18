@@ -188,6 +188,7 @@ export class SyncService {
       borrower_name: loan.borrowerName,
       borrower_location: loan.borrowerLocation,
       borrower_phone: loan.borrowerPhone || null,
+      principal_amount: loan.principalAmount || loan.totalAmount,
       total_amount: loan.totalAmount,
       monthly_interest: loan.monthlyInterest,
       annual_interest: loan.annualInterest,
@@ -211,6 +212,7 @@ export class SyncService {
       borrowerName: row.borrower_name,
       borrowerLocation: row.borrower_location,
       borrowerPhone: row.borrower_phone,
+      principalAmount: Number(row.principal_amount || row.total_amount),
       totalAmount: Number(row.total_amount),
       monthlyInterest: Number(row.monthly_interest),
       annualInterest: Number(row.annual_interest),
@@ -234,6 +236,8 @@ export class SyncService {
       user_id: userId,
       date: payment.date instanceof Date ? payment.date.toISOString() : payment.date,
       amount: payment.amount,
+      interest_amount: payment.interestAmount !== undefined ? payment.interestAmount : 0,
+      capital_amount: payment.capitalAmount !== undefined ? payment.capitalAmount : payment.amount,
       receipt_url: payment.receiptUrl || null,
       note: payment.note || null,
     };
@@ -249,6 +253,8 @@ export class SyncService {
       userId: row.user_id,
       date: new Date(row.date),
       amount: Number(row.amount),
+      interestAmount: Number(row.interest_amount || 0),
+      capitalAmount: Number(row.capital_amount !== undefined && row.capital_amount !== null ? row.capital_amount : row.amount),
       receiptUrl: row.receipt_url,
       note: row.note,
     };

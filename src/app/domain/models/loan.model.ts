@@ -6,7 +6,8 @@ export interface Loan {
   borrowerName: string;
   borrowerLocation: string;
   borrowerPhone?: string;
-  totalAmount: number;
+  principalAmount: number;  // Capital prestado original
+  totalAmount: number;      // Total a pagar (capital + intereses)
   monthlyInterest: number;
   annualInterest: number;
   totalInstallments: number;

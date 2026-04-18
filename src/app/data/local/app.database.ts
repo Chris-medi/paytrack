@@ -12,7 +12,7 @@ export interface SyncTask {
 }
 
 const DB_NAME = 'PaymentHistoryDB';
-const DB_SCHEMA_VERSION = 3; // Bumped from 2 to force recreation for new schema
+const DB_SCHEMA_VERSION = 4; // Bumped to 4 for interest/capital fields
 
 export class AppDatabase extends Dexie {
   loans!: Table<Loan, string>;

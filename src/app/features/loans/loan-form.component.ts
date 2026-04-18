@@ -174,6 +174,7 @@ export class LoanFormComponent {
     const payloadToValidate = {
       ...data,
       borrowerLocation: String(data.borrowerLocation),
+      principalAmount: Number(data.totalAmount),
       startDate: new Date(),
       firstDueDate: new Date(data.firstDueDate + 'T00:00:00'),
       installmentValue: this.calculatedValorCuota()
@@ -202,6 +203,7 @@ export class LoanFormComponent {
       borrowerName: data.borrowerName,
       borrowerLocation: String(data.borrowerLocation),
       borrowerPhone: data.borrowerPhone || undefined,
+      principalAmount: Number(data.totalAmount),
       totalAmount: this.calculatedTotal(),
       monthlyInterest: data.monthlyInterest,
       annualInterest: data.monthlyInterest * 12,
