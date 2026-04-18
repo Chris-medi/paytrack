@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 export interface VoiceParams {
   nombre: string;
@@ -14,7 +15,7 @@ export class AudioAnalysisService {
   private http = inject(HttpClient);
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private readonly API_URL = 'http://localhost:3000/analyze-audio';
+  private readonly API_URL = environment.audioAnalysisUrl;
 
   async startRecording() {
     this.audioChunks = [];

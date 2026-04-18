@@ -11,7 +11,7 @@ import { LoanStore } from '../loans/store/loan.store';
       
       <header class="pt-2 mb-2">
         <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Clientes</h2>
-        <p class="text-sm text-slate-500">Agrupados por documento</p>
+        <p class="text-sm text-slate-500">Agrupados por nombre</p>
       </header>
 
       @if (loanStore.loading()) {
@@ -23,7 +23,7 @@ import { LoanStore } from '../loans/store/loan.store';
       @if (!loanStore.loading()) {
         <div class="flex flex-col gap-3 pb-4">
           
-          @for (client of groupedBorrowers(); track client.document) {
+          @for (client of groupedBorrowers(); track client.name) {
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-3">
               
               <div class="flex items-center gap-3">
@@ -32,7 +32,10 @@ import { LoanStore } from '../loans/store/loan.store';
                 </div>
                 <div>
                   <h3 class="font-bold text-slate-900 dark:text-white text-lg leading-tight">{{ client.name }}</h3>
-                  <p class="text-xs text-slate-500 tracking-wide font-medium">CC: {{ client.document }}</p>
+                  <p class="text-xs text-slate-500 tracking-wide font-medium flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    {{ client.location }}
+                  </p>
                 </div>
               </div>
 
@@ -74,20 +77,19 @@ export class BorrowerListComponent implements OnInit {
     const groupMap = new Map<string, any>();
 
     loans.forEach(loan => {
-      if (!groupMap.has(loan.borrowerDocument)) {
-        groupMap.set(loan.borrowerDocument, {
-          document: loan.borrowerDocument,
-          name: loan.borrowerName, // Assume same name for same doc
+      if (!groupMap.has(loan.borrowerName)) {
+        groupMap.set(loan.borrowerName, {
+          name: loan.borrowerName,
+          location: loan.borrowerLocation,
           totalLoans: 0,
           totalAmountPending: 0
         });
       }
 
-      const current = groupMap.get(loan.borrowerDocument);
+      const current = groupMap.get(loan.borrowerName);
       current.totalLoans += 1;
-      
+
       // Calculate pending (approx unless payments loaded, for now we sum totalAmount)
-      // Ideally we would have real balance tracking per loan or reduce payments
       if (loan.status !== 'paid') {
         current.totalAmountPending += (loan.totalInstallments * loan.installmentValue);
       }

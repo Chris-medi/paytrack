@@ -7,6 +7,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
   },
   {
+    // Public route - NO auth guard
+    path: 'public/loan/:id',
+    loadComponent: () => import('./features/public-loan/public-loan.component').then(m => m.PublicLoanComponent)
+  },
+  {
     path: '',
     loadComponent: () => import('./layout/main-layout.component').then(m => m.MainLayoutComponent),
     canActivate: [authGuard],

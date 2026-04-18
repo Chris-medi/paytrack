@@ -12,7 +12,7 @@ export interface SyncTask {
 }
 
 const DB_NAME = 'PaymentHistoryDB';
-const DB_SCHEMA_VERSION = 2; // Bumped from 1 to force recreation
+const DB_SCHEMA_VERSION = 3; // Bumped from 2 to force recreation for new schema
 
 export class AppDatabase extends Dexie {
   loans!: Table<Loan, string>;
@@ -23,7 +23,7 @@ export class AppDatabase extends Dexie {
     super(DB_NAME);
     
     this.version(DB_SCHEMA_VERSION).stores({
-      loans: 'id, borrowerDocument, status, createdAt',
+      loans: 'id, borrowerLocation, status, createdAt',
       payments: 'id, loanId, date',
       syncQueue: '++id, collection, status, createdAt'
     });
@@ -32,7 +32,7 @@ export class AppDatabase extends Dexie {
 
 /**
  * Borra la BD vieja si existe con schema incompatible y crea una nueva.
- * Los datos se re-sincronizarán desde Firebase con syncDown().
+ * Los datos se re-sincronizarán desde Supabase con syncDown().
  */
 async function initDatabase(): Promise<AppDatabase> {
   try {

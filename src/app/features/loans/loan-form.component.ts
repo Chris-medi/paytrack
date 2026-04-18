@@ -32,10 +32,18 @@ import { Loan } from '../../domain/models/loan.model';
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Documento (CC)</label>
-          <input type="number" [ngModel]="formData().borrowerDocument" (ngModelChange)="updateField('borrowerDocument', $event)" 
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">📍 Ubicación</label>
+          <input type="text" [ngModel]="formData().borrowerLocation" (ngModelChange)="updateField('borrowerLocation', $event)" 
+                 placeholder="Dirección o zona del cliente"
                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-          <p class="text-rose-500 text-xs mt-1 min-h-[16px]">{{ errors()['borrowerDocument'] }}</p>
+          <p class="text-rose-500 text-xs mt-1 min-h-[16px]">{{ errors()['borrowerLocation'] }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">📱 Teléfono <span class="lowercase text-[10px]">(WhatsApp)</span></label>
+          <input type="tel" [ngModel]="formData().borrowerPhone" (ngModelChange)="updateField('borrowerPhone', $event)" 
+                 placeholder="Ej: 573001234567"
+                 class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
         </div>
 
         <hr class="border-slate-100 dark:border-slate-700 my-2">
@@ -121,7 +129,8 @@ export class LoanFormComponent {
   // Initial State form (Signals)
   formData = signal<any>({
     borrowerName: '',
-    borrowerDocument: '',
+    borrowerLocation: '',
+    borrowerPhone: '',
     totalAmount: null,
     monthlyInterest: 5,
     totalInstallments: 1,
@@ -164,7 +173,7 @@ export class LoanFormComponent {
     // Preparar payload para zod validation (transforming strings to Dates)
     const payloadToValidate = {
       ...data,
-      borrowerDocument: String(data.borrowerDocument), // Enforce string for document
+      borrowerLocation: String(data.borrowerLocation),
       startDate: new Date(),
       firstDueDate: new Date(data.firstDueDate + 'T00:00:00'),
       installmentValue: this.calculatedValorCuota()
@@ -191,8 +200,9 @@ export class LoanFormComponent {
 
     const newLoan: Loan = {
       borrowerName: data.borrowerName,
-      borrowerDocument: String(data.borrowerDocument),
-      totalAmount: this.calculatedTotal(), // saving the expected total return directly. Depending on financial model, it could be the nominal principal amount.
+      borrowerLocation: String(data.borrowerLocation),
+      borrowerPhone: data.borrowerPhone || undefined,
+      totalAmount: this.calculatedTotal(),
       monthlyInterest: data.monthlyInterest,
       annualInterest: data.monthlyInterest * 12,
       totalInstallments: data.totalInstallments,

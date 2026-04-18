@@ -1,7 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { FirebaseService } from '../../core/firebase/firebase.service';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { SupabaseService } from '../../core/supabase/supabase.service';
 import { AppStore } from '../../core/store/app.store';
 
 @Component({
@@ -48,18 +47,17 @@ import { AppStore } from '../../core/store/app.store';
 })
 export class LoginComponent {
   private router = inject(Router);
-  private appStore = inject(AppStore)
-  private firebaseService = inject(FirebaseService);
+  private appStore = inject(AppStore);
+  private supabaseService = inject(SupabaseService);
 
   async loginWithGoogle() {
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(this.firebaseService.auth, provider);
-      this.appStore.setUser(result.user)
-      this.router.navigate(['/dashboard']);
+      await this.supabaseService.loginWithGoogle();
+      // Supabase OAuth redirects to the provider, so the user will be
+      // redirected back. The auth state change in app.ts will handle
+      // setting the user and navigating.
     } catch (error) {
       console.error('Error logging in:', error);
-      // alert('Error al iniciar sesión');
     }
   }
 

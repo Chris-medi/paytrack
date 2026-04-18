@@ -1,7 +1,6 @@
 import { Injectable, effect, inject } from '@angular/core';
-import { collection, doc, setDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { dbReady } from '../local/app.database';
-import { FirebaseService } from '../../core/firebase/firebase.service';
+import { SupabaseService } from '../../core/supabase/supabase.service';
 import { AppStore } from '../../core/store/app.store';
 import { LoanStore } from '../../features/loans/store/loan.store';
 
@@ -9,9 +8,9 @@ import { LoanStore } from '../../features/loans/store/loan.store';
 export class SyncService {
   appStore = inject(AppStore);
   loanStore = inject(LoanStore);
-  private firebaseService = inject(FirebaseService);
+  private supabaseService = inject(SupabaseService);
 
-  private firestore = this.firebaseService.firestore;
+  private supabase = this.supabaseService.supabase;
   private syncInterval: any;
   private isSyncing = false;
 
@@ -40,8 +39,8 @@ export class SyncService {
   }
 
   /**
-   * Sincronización descendente (Firestore -> IndexedDB)
-   * Descarga TODOS los datos del usuario desde Firestore y los guarda localmente.
+   * Sincronización descendente (Supabase -> IndexedDB)
+   * Descarga TODOS los datos del usuario desde Supabase y los guarda localmente.
    */
   async syncDown() {
     const user = this.appStore.user();
@@ -53,41 +52,49 @@ export class SyncService {
       this.appStore.setIsSyncing(true);
       console.log('[Sync] Starting syncDown for user:', user.uid);
 
-      // 1. Obtener préstamos de Firestore
-      const loansRef = collection(this.firestore, `users/${user.uid}/loans`);
-      const loansSnapshot = await getDocs(loansRef);
-      const remoteLoans = loansSnapshot.docs.map(d => ({
-        id: d.id,
-        ...this.convertTimestampsToDate(d.data())
-      }));
+      // 1. Obtener préstamos de Supabase
+      const { data: remoteLoans, error: loansError } = await this.supabase
+        .from('loans')
+        .select('*')
+        .eq('user_id', user.uid);
 
-      console.log(`[Sync] Found ${remoteLoans.length} loans in Firestore`);
+      if (loansError) {
+        console.error('[Sync] Error fetching loans:', loansError);
+        return;
+      }
 
-      // Limpiar datos locales y reemplazar con los de Firestore
+      const mappedLoans = (remoteLoans || []).map(l => this.mapLoanFromSupabase(l));
+      console.log(`[Sync] Found ${mappedLoans.length} loans in Supabase`);
+
+      // Limpiar datos locales y reemplazar con los de Supabase
       await db.loans.clear();
-      if (remoteLoans.length > 0) {
-        await db.loans.bulkPut(remoteLoans as any[]);
+      if (mappedLoans.length > 0) {
+        await db.loans.bulkPut(mappedLoans as any[]);
       }
 
       // 2. Obtener pagos
-      const paymentsRef = collection(this.firestore, `users/${user.uid}/payments`);
-      const paymentsSnapshot = await getDocs(paymentsRef);
-      const remotePayments = paymentsSnapshot.docs.map(d => ({
-        id: d.id,
-        ...this.convertTimestampsToDate(d.data())
-      }));
+      const { data: remotePayments, error: paymentsError } = await this.supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', user.uid);
 
-      console.log(`[Sync] Found ${remotePayments.length} payments in Firestore`);
+      if (paymentsError) {
+        console.error('[Sync] Error fetching payments:', paymentsError);
+        return;
+      }
+
+      const mappedPayments = (remotePayments || []).map(p => this.mapPaymentFromSupabase(p));
+      console.log(`[Sync] Found ${mappedPayments.length} payments in Supabase`);
 
       await db.payments.clear();
-      if (remotePayments.length > 0) {
-        await db.payments.bulkPut(remotePayments as any[]);
+      if (mappedPayments.length > 0) {
+        await db.payments.bulkPut(mappedPayments as any[]);
       }
 
       console.log('[Sync] syncDown completed successfully');
 
     } catch (error) {
-      console.error('[Sync] Error syncing down from Firestore:', error);
+      console.error('[Sync] Error syncing down from Supabase:', error);
     } finally {
       this.appStore.setIsSyncing(false);
       // Refresh UI con los datos actualizados de IndexedDB
@@ -100,11 +107,11 @@ export class SyncService {
    */
   async fullSync() {
     await this.processSyncQueue(); // Subir cambios locales pendientes primero
-    await this.syncDown();         // Luego descargar todo de Firestore
+    await this.syncDown();         // Luego descargar todo de Supabase
   }
 
   /**
-   * Sincronización ascendente (IndexedDB SyncQueue -> Firestore)
+   * Sincronización ascendente (IndexedDB SyncQueue -> Supabase)
    */
   async processSyncQueue() {
     const user = this.appStore.user();
@@ -122,15 +129,28 @@ export class SyncService {
 
     for (const item of pendingItems) {
       try {
-        // Convert all date-like values to Firestore Timestamps
-        const payload = this.convertDatesToTimestamps(item.payload);
+        const payload = item.payload;
 
-        // Set remote doc
-        // Estructura: users/{userId}/{collection}/{itemId}
-        const docRef = doc(this.firestore, `users/${user.uid}/${item.collection}`, payload.id);
+        if (item.collection === 'loans') {
+          const supabaseData = this.mapLoanToSupabase(payload, user.uid);
 
-        if (item.operation === 'create' || item.operation === 'update') {
-          await setDoc(docRef, payload, { merge: true });
+          if (item.operation === 'create') {
+            const { error } = await this.supabase.from('loans').upsert(supabaseData);
+            if (error) throw error;
+          } else if (item.operation === 'update') {
+            const { error } = await this.supabase.from('loans').upsert(supabaseData);
+            if (error) throw error;
+          }
+        } else if (item.collection === 'payments') {
+          const supabaseData = this.mapPaymentToSupabase(payload, user.uid);
+
+          if (item.operation === 'create') {
+            const { error } = await this.supabase.from('payments').upsert(supabaseData);
+            if (error) throw error;
+          } else if (item.operation === 'update') {
+            const { error } = await this.supabase.from('payments').upsert(supabaseData);
+            if (error) throw error;
+          }
         }
 
         // Marcar como procesado en la cola
@@ -150,36 +170,79 @@ export class SyncService {
   }
 
   /**
-   * Convierte Date objects y strings ISO a Firestore Timestamps para subir
+   * Mapea un loan local (camelCase) a formato Supabase (snake_case)
    */
-  private convertDatesToTimestamps(data: any): any {
-    const converted = { ...data };
-    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T/;
-
-    for (const key of Object.keys(converted)) {
-      const val = converted[key];
-      if (val instanceof Date) {
-        converted[key] = Timestamp.fromDate(val);
-      } else if (typeof val === 'string' && isoDateRegex.test(val) && !isNaN(Date.parse(val))) {
-        converted[key] = Timestamp.fromDate(new Date(val));
-      }
-    }
-    return converted;
+  private mapLoanToSupabase(loan: any, userId: string): any {
+    return {
+      id: loan.id,
+      user_id: userId,
+      borrower_name: loan.borrowerName,
+      borrower_location: loan.borrowerLocation,
+      borrower_phone: loan.borrowerPhone || null,
+      total_amount: loan.totalAmount,
+      monthly_interest: loan.monthlyInterest,
+      annual_interest: loan.annualInterest,
+      total_installments: loan.totalInstallments,
+      installment_value: loan.installmentValue,
+      start_date: loan.startDate instanceof Date ? loan.startDate.toISOString() : loan.startDate,
+      first_due_date: loan.firstDueDate instanceof Date ? loan.firstDueDate.toISOString() : loan.firstDueDate,
+      next_due_date: loan.nextDueDate instanceof Date ? loan.nextDueDate.toISOString() : loan.nextDueDate,
+      status: loan.status,
+      created_at: loan.createdAt instanceof Date ? loan.createdAt.toISOString() : loan.createdAt,
+    };
   }
 
   /**
-   * Convierte Firestore Timestamps a JS Date al descargar
+   * Mapea un loan de Supabase (snake_case) a formato local (camelCase)
    */
-  private convertTimestampsToDate(data: any): any {
-    const converted = { ...data };
-    for (const key of Object.keys(converted)) {
-      const val = converted[key];
-      if (val && typeof val.toDate === 'function') {
-        // Firestore Timestamp → JS Date
-        converted[key] = val.toDate();
-      }
-    }
-    return converted;
+  private mapLoanFromSupabase(row: any): any {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      borrowerName: row.borrower_name,
+      borrowerLocation: row.borrower_location,
+      borrowerPhone: row.borrower_phone,
+      totalAmount: Number(row.total_amount),
+      monthlyInterest: Number(row.monthly_interest),
+      annualInterest: Number(row.annual_interest),
+      totalInstallments: Number(row.total_installments),
+      installmentValue: Number(row.installment_value),
+      startDate: new Date(row.start_date),
+      firstDueDate: new Date(row.first_due_date),
+      nextDueDate: new Date(row.next_due_date),
+      status: row.status,
+      createdAt: new Date(row.created_at),
+    };
+  }
+
+  /**
+   * Mapea un payment local a formato Supabase
+   */
+  private mapPaymentToSupabase(payment: any, userId: string): any {
+    return {
+      id: payment.id,
+      loan_id: payment.loanId,
+      user_id: userId,
+      date: payment.date instanceof Date ? payment.date.toISOString() : payment.date,
+      amount: payment.amount,
+      receipt_url: payment.receiptUrl || null,
+      note: payment.note || null,
+    };
+  }
+
+  /**
+   * Mapea un payment de Supabase a formato local
+   */
+  private mapPaymentFromSupabase(row: any): any {
+    return {
+      id: row.id,
+      loanId: row.loan_id,
+      userId: row.user_id,
+      date: new Date(row.date),
+      amount: Number(row.amount),
+      receiptUrl: row.receipt_url,
+      note: row.note,
+    };
   }
 
   // Sync periódico: sube pendientes + descarga actualizaciones cada 60s
