@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { SupabaseService } from '../supabase/supabase.service';
+import { from } from 'rxjs';
 
 export interface VoiceParams {
   nombre: string;
@@ -12,10 +12,9 @@ export interface VoiceParams {
   providedIn: 'root'
 })
 export class AudioAnalysisService {
-  private http = inject(HttpClient);
+  private supabaseService = inject(SupabaseService);
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private readonly API_URL = environment.audioAnalysisUrl;
 
   async startRecording() {
     this.audioChunks = [];
@@ -61,6 +60,6 @@ export class AudioAnalysisService {
     formData.append('accion', params.accion);
     formData.append('monto', params.monto);
 
-    return this.http.post<VoiceParams>(this.API_URL, formData);
+    return from(this.supabaseService.invokeFunction('analyze-audio-gemini', formData))
   }
 }

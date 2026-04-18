@@ -49,4 +49,12 @@ export class SupabaseService {
     }
     return true;
   }
+
+  async invokeFunction(functionName: string, body: any) {
+    const { data, error } = await this.supabase.functions.invoke(functionName, { body });
+    if (error) {
+      return error;
+    }
+    return data;
+  }
 }

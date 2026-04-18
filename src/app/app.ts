@@ -27,6 +27,7 @@ export class App implements OnInit, OnDestroy {
           uid: session.user.id,
           email: session.user.email ?? null,
           displayName: session.user.user_metadata?.['full_name'] ?? session.user.email ?? null,
+          token: session.access_token
         });
 
         // Solo sincronizar al inicio o al iniciar sesión, no en cada resfresh de token

@@ -7,6 +7,7 @@ export interface AppUser {
   uid: string;
   email: string | null;
   displayName: string | null;
+  token: string | null
 }
 
 export interface AppState {

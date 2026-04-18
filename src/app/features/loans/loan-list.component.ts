@@ -131,14 +131,14 @@ export class LoanListComponent {
 
   filteredAndSortedLoans = computed(() => {
     let result = this.loanStore.loans();
-    const query = this.searchQuery().toLowerCase().trim();
+    const query = this.normalizarQuery(this.searchQuery());
     const status = this.statusFilter();
     const sort = this.sortBy();
 
     if (query) {
       result = result.filter(l =>
-        l.borrowerName.toLowerCase().includes(query) ||
-        l.borrowerLocation.toLowerCase().includes(query)
+        this.normalizarQuery(l.borrowerName).includes(query) ||
+        this.normalizarQuery(l.borrowerLocation).includes(query)
       );
     }
 
@@ -179,5 +179,9 @@ export class LoanListComponent {
 
   getStatus(loan: Loan) {
     return LoanCalculator.getDynamicStatus(loan);
+  }
+
+  normalizarQuery(query: string): string {
+    return query.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   }
 }
