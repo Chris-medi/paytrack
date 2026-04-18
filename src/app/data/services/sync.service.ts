@@ -46,7 +46,7 @@ export class SyncService {
    */
   async syncDown() {
     if (this.isSyncingDown) return;
-    
+
     const user = this.appStore.user();
     if (!user) return;
 
@@ -259,7 +259,7 @@ export class SyncService {
     if (this.syncInterval) clearInterval(this.syncInterval);
     this.syncInterval = setInterval(() => {
       this.fullSync();
-    }, 60000);
+    }, 60000 * 10);
   }
 
   private stopPeriodicSync() {

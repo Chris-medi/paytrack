@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve --port 5000",
     "build": "ng build",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:paymentHistory": "node dist/paymentHistory/server/server.mjs"
