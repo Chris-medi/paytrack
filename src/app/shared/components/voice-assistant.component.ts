@@ -11,7 +11,7 @@ import { finalize } from 'rxjs/operators';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="fixed bottom-20 left-4 z-50 flex flex-col items-start gap-3">
+    <div class="fixed bottom-20 left-4 z-1 flex flex-col items-start gap-3">
       
       <!-- Status Toast -->
       @if (statusMessage() && !isAnalyzing()) {

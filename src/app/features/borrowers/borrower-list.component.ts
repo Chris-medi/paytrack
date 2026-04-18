@@ -46,7 +46,7 @@ import { LoanStore } from '../loans/store/loan.store';
                 </div>
                 <div class="text-center col-span-2">
                   <p class="text-[10px] text-slate-400 uppercase font-semibold">Total Pendiente (Aprox)</p>
-                  <p class="font-bold text-emerald-600 dark:text-emerald-400">{{ client.totalAmountPending | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+                  <p class="font-bold text-emerald-600 dark:text-emerald-400">{{ client.totalAmountPending | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
                 </div>
               </div>
 
@@ -95,6 +95,9 @@ export class BorrowerListComponent implements OnInit {
       }
     });
 
-    return Array.from(groupMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(groupMap.values()).map(client => ({
+      ...client,
+      totalAmountPending: Number(client.totalAmountPending.toFixed(2))
+    })).sort((a, b) => a.name.localeCompare(b.name));
   });
 }

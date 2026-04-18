@@ -95,14 +95,14 @@ import { Loan } from '../../domain/models/loan.model';
                   <p class="text-[10px] text-slate-400 uppercase tracking-wide">Próxima Cuota</p>
                   <p class="font-medium text-slate-700 dark:text-slate-200">
                     <span class="text-emerald-600 dark:text-emerald-400 font-bold mr-1">
-                      {{ loan.installmentValue | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      {{ loan.installmentValue | currency:'COP':'symbol-narrow':'1.2-2' }}
                     </span>
                     <span class="text-xs"> ({{ loan.nextDueDate | date:'d MMM' }})</span>
                   </p>
                 </div>
                 <div class="text-right">
                   <p class="text-[10px] text-slate-400 uppercase tracking-wide">Total</p>
-                  <p class="font-semibold text-slate-800 dark:text-slate-100">{{ loan.totalAmount | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+                  <p class="font-semibold text-slate-800 dark:text-slate-100">{{ loan.totalAmount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
                 </div>
               </div>
             </div>

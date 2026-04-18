@@ -92,12 +92,12 @@ interface PublicPayment {
             <div class="absolute -right-12 -top-12 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
             
             <p class="text-emerald-100 text-xs uppercase tracking-widest font-semibold mb-2">Saldo Pendiente</p>
-            <h3 class="text-4xl font-bold tracking-tight mb-4">{{ balance() | currency:'COP':'symbol-narrow':'1.0-0' }}</h3>
+            <h3 class="text-4xl font-bold tracking-tight mb-4">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h3>
             
             <div class="flex justify-between items-center border-t border-emerald-400/30 pt-4">
               <div>
                 <p class="text-[10px] text-emerald-200 uppercase tracking-widest font-semibold">Valor Cuota</p>
-                <p class="font-semibold text-lg">{{ loan()!.installmentValue | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+                <p class="font-semibold text-lg">{{ loan()!.installmentValue | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
               </div>
               <div class="text-right">
                 <p class="text-[10px] text-emerald-200 uppercase tracking-widest font-semibold">Próximo Pago</p>
@@ -110,11 +110,11 @@ interface PublicPayment {
           <div class="grid grid-cols-2 gap-3 mb-6">
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
               <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Valor Total</p>
-              <p class="text-lg font-bold text-white">{{ totalExpected() | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+              <p class="text-lg font-bold text-white">{{ totalExpected() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
               <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Total Abonado</p>
-              <p class="text-lg font-bold text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+              <p class="text-lg font-bold text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 text-center">
               <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Cuotas Totales</p>
@@ -160,7 +160,7 @@ interface PublicPayment {
                       }
                     </div>
                   </div>
-                  <p class="font-bold text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+                  <p class="font-bold text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
                 </div>
               }
 
@@ -262,15 +262,15 @@ export class PublicLoanComponent implements OnInit {
   totalExpected = computed(() => {
     const l = this.loan();
     if (!l) return 0;
-    return l.totalInstallments * l.installmentValue;
+    return Number((l.totalInstallments * l.installmentValue).toFixed(2));
   });
 
   totalPaid = computed(() => {
-    return this.payments().reduce((acc, p) => acc + p.amount, 0);
+    return Number(this.payments().reduce((acc, p) => acc + p.amount, 0).toFixed(2));
   });
 
   balance = computed(() => {
-    return this.totalExpected() - this.totalPaid();
+    return Number((this.totalExpected() - this.totalPaid()).toFixed(2));
   });
 
   paidInstallments = computed(() => {

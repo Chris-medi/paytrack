@@ -98,11 +98,11 @@ import { Loan } from '../../domain/models/loan.model';
         <div class="grid grid-cols-2 gap-4">
           <div>
             <p class="text-[10px] text-slate-400 uppercase">Valor de la Cuota</p>
-            <p class="text-xl font-bold">{{ calculatedValorCuota() | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+            <p class="text-xl font-bold">{{ calculatedValorCuota() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
           </div>
           <div class="text-right">
             <p class="text-[10px] text-slate-400 uppercase">Total a Pagar</p>
-            <p class="text-lg font-semibold text-emerald-300">{{ calculatedTotal() | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+            <p class="text-lg font-semibold text-emerald-300">{{ calculatedTotal() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
           </div>
         </div>
 
@@ -148,12 +148,12 @@ export class LoanFormComponent {
 
     // Simple Interest P + (P * r * t)
     const interesAmount = (amount * (interest / 100)) * months;
-    return amount + interesAmount;
+    return Number((amount + interesAmount).toFixed(2));
   });
 
   calculatedValorCuota = computed(() => {
     const months = Number(this.formData().totalInstallments) || 1;
-    return this.calculatedTotal() / months;
+    return Number((this.calculatedTotal() / months).toFixed(2));
   });
 
   isValid = computed(() => {

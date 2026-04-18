@@ -38,14 +38,19 @@ export class SyncService {
     }
   }
 
+  private isSyncingDown = false;
+
   /**
    * Sincronización descendente (Supabase -> IndexedDB)
    * Descarga TODOS los datos del usuario desde Supabase y los guarda localmente.
    */
   async syncDown() {
+    if (this.isSyncingDown) return;
+    
     const user = this.appStore.user();
     if (!user) return;
 
+    this.isSyncingDown = true;
     const db = await dbReady;
 
     try {
@@ -97,6 +102,7 @@ export class SyncService {
       console.error('[Sync] Error syncing down from Supabase:', error);
     } finally {
       this.appStore.setIsSyncing(false);
+      this.isSyncingDown = false;
       // Refresh UI con los datos actualizados de IndexedDB
       await this.loanStore.loadLoans();
     }
@@ -117,13 +123,16 @@ export class SyncService {
     const user = this.appStore.user();
     if (!user || this.isSyncing) return;
 
-    this.isSyncing = true;
-    this.appStore.setIsSyncing(true);
-
     const db = await dbReady;
-
     let queueLength = await db.syncQueue.where('status').equals('pending').count();
     this.appStore.updateSyncQueueLength(queueLength);
+
+    if (queueLength === 0) {
+      return; // Nada que sincronizar
+    }
+
+    this.isSyncing = true;
+    this.appStore.setIsSyncing(true);
 
     const pendingItems = await db.syncQueue.where('status').equals('pending').toArray();
 

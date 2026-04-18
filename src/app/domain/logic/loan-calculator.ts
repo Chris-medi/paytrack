@@ -4,7 +4,7 @@ import { Payment } from '../models/payment.model';
 export class LoanCalculator {
 
   static calculateTotalPaid(payments: Payment[]): number {
-    return payments.reduce((acc, current) => acc + current.amount, 0);
+    return Number(payments.reduce((acc, current) => acc + current.amount, 0).toFixed(2));
   }
 
   static calculateRemainingBalance(loan: Loan, payments: Payment[]): number {
@@ -13,7 +13,7 @@ export class LoanCalculator {
     // or as the principal amount. Based on standard fixed installment loans:
     // the total debt to be paid is totalInstallments * installmentValue
     const totalExpected = loan.totalInstallments * loan.installmentValue;
-    return totalExpected - totalPaid;
+    return Number((totalExpected - totalPaid).toFixed(2));
   }
 
   static calculatePaidInstallments(loan: Loan, payments: Payment[]): number {

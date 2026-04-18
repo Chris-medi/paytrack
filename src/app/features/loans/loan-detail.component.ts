@@ -48,14 +48,14 @@ import { environment } from '../../../environments/environment';
             {{ loan()?.borrowerLocation }}
           </p>
           <div class="flex items-end gap-2 mb-6">
-            <h1 class="text-4xl font-bold tracking-tight">{{ balance() | currency:'COP':'symbol-narrow':'1.0-0' }}</h1>
+            <h1 class="text-4xl font-bold tracking-tight">{{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</h1>
             <p class="text-emerald-200 text-sm pb-1 font-medium">Saldo</p>
           </div>
 
           <div class="flex justify-between items-center border-t border-emerald-400/30 pt-4">
             <div>
               <p class="text-[10px] text-emerald-200 uppercase tracking-widest font-semibold">Valor Cuota</p>
-              <p class="font-semibold">{{ loan()?.installmentValue | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+              <p class="font-semibold">{{ loan()?.installmentValue | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
             <div class="text-right">
               <p class="text-[10px] text-emerald-200 uppercase tracking-widest font-semibold">Próximo Pago</p>
@@ -74,7 +74,7 @@ import { environment } from '../../../environments/environment';
         </div>
         <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm text-center">
           <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Abonado</p>
-          <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+          <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ totalPaid() | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
         </div>
       </div>
 
@@ -100,7 +100,7 @@ import { environment } from '../../../environments/environment';
                   <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
                 </div>
               </div>
-              <p class="font-bold text-emerald-600 dark:text-emerald-400">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+              <p class="font-bold text-emerald-600 dark:text-emerald-400">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
             </div>
           }
 
@@ -127,8 +127,12 @@ import { environment } from '../../../environments/environment';
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Monto del abono</label>
               <div class="relative">
                 <span class="absolute inset-y-0 left-3 flex items-center font-bold text-slate-400">$</span>
-                <input type="number" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" 
+                <input type="text" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" 
                        class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white">
+              </div>
+              <div class="flex justify-between mt-1 px-1">
+                <span class="text-[10px] text-slate-400">Cuota: {{ loan()?.installmentValue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
+                <span class="text-[10px] text-slate-400">Saldo: {{ balance() | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
               </div>
             </div>
             
@@ -251,7 +255,7 @@ export class LoanDetailComponent implements OnInit {
 
     const url = this.publicUrl();
     const message = `Hola ${loan.borrowerName}, aquí puedes ver el estado de tu préstamo:\n\n` +
-      `💰 Saldo pendiente: $${this.balance().toLocaleString('es-CO', { maximumFractionDigits: 0 })}\n` +
+      `💰 Saldo pendiente: $${this.balance().toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
       `📅 Próximo pago: ${this.nextDueDate().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}\n\n` +
       `🔗 Ver detalles completos:\n${url}`;
 

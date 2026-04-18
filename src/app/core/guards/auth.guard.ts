@@ -9,7 +9,6 @@ export const authGuard: CanActivateFn = () => {
 
   return from(supabaseService.getCurrentUser()).pipe(
     map((session) => {
-      console.log(session)
       if (session) {
         return true;
       } else {

@@ -28,22 +28,15 @@ export class App implements OnInit, OnDestroy {
           email: session.user.email ?? null,
           displayName: session.user.user_metadata?.['full_name'] ?? session.user.email ?? null,
         });
-        await this.syncService.fullSync();
+
+        // Solo sincronizar al inicio o al iniciar sesión, no en cada resfresh de token
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          await this.syncService.fullSync();
+        }
       } else {
         this.appStore.setUser(null);
       }
     });
-
-    // Also check current session on init (for page refreshes)
-    const currentSession = await this.supabaseService.getCurrentUser();
-    if (currentSession?.user) {
-      this.appStore.setUser({
-        uid: currentSession.user.id,
-        email: currentSession.user.email ?? null,
-        displayName: currentSession.user.user_metadata?.['full_name'] ?? currentSession.user.email ?? null,
-      });
-      await this.syncService.fullSync();
-    }
 
     // Dummy listener for online/offline
     window.addEventListener('online', () => this.appStore.setNetworkStatus('online'));
