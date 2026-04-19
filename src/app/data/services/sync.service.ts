@@ -253,8 +253,8 @@ export class SyncService {
       userId: row.user_id,
       date: new Date(row.date),
       amount: Number(row.amount),
-      interestAmount: Number(row.interest_amount || 0),
-      capitalAmount: Number(row.capital_amount !== undefined && row.capital_amount !== null ? row.capital_amount : row.amount),
+      interestAmount: Number(row.interest_amount ?? 0),
+      capitalAmount: Number(row.capital_amount ?? row.amount),
       receiptUrl: row.receipt_url,
       note: row.note,
     };

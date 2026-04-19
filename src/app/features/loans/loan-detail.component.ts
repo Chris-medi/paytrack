@@ -193,11 +193,10 @@ import { environment } from '../../../environments/environment';
                 
                 <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 mt-1 flex justify-between text-xs">
                   <div class="text-slate-600 dark:text-slate-400">
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">Capital:</span> {{ (payment.capitalAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">Capital:</span> {{ (payment.capitalAmount) | currency:'COP':'symbol-narrow':'1.2-2' }}
                   </div>
                   <div class="text-slate-600 dark:text-slate-400">
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">Interés:</span> {{ (payment.interestAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
-                    {{payment.interestAmount}}
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">Interés:</span> {{ (payment.interestAmount) | currency:'COP':'symbol-narrow':'1.2-2' }}
                   </div>
                 </div>
 

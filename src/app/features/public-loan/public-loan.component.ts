@@ -344,8 +344,8 @@ export class PublicLoanComponent implements OnInit {
           userId: p.user_id,
           date: new Date(p.date),
           amount: Number(p.amount),
-          interestAmount: Number(p.interest_amount || 0),
-          capitalAmount: Number(p.capital_amount !== undefined && p.capital_amount !== null ? p.capital_amount : p.amount),
+          interestAmount: Number(p.interest_amount ?? 0),
+          capitalAmount: Number(p.capital_amount ?? p.amount),
           note: p.note,
           receiptUrl: p.receipt_url,
         })));

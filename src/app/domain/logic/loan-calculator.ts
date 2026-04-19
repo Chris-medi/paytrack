@@ -25,7 +25,7 @@ export class LoanCalculator {
    * Total de interés pagado en todos los pagos.
    */
   static calculateTotalInterestPaid(payments: Payment[]): number {
-    return Number(payments.reduce((acc, p) => acc + (p.interestAmount || 0), 0).toFixed(2));
+    return Number(payments.reduce((acc, p) => acc + (p.interestAmount ?? 0), 0).toFixed(2));
   }
 
   /**
@@ -33,7 +33,7 @@ export class LoanCalculator {
    */
   static calculateTotalCapitalPaid(payments: Payment[]): number {
     return Number(payments.reduce((acc, p) => {
-      const cap = p.capitalAmount !== undefined && p.capitalAmount !== null ? p.capitalAmount : p.amount;
+      const cap = p.capitalAmount ?? p.amount;
       return acc + cap;
     }, 0).toFixed(2));
   }
@@ -103,9 +103,18 @@ export class LoanCalculator {
       let applyInt = Math.min(interestPool, monthlyInterest);
       let applyCap = Math.min(capitalPool, monthlyCapital);
 
-      // Si es la última cuota, puede absorber el sobrante de capital por redondeos
-      if (i === loan.totalInstallments - 1 && capitalPool > applyCap) {
-         applyCap = capitalPool;
+      // Calculamos cuánto se espera en el futuro
+      const remainingInstallments = loan.totalInstallments - 1 - i;
+      const expectedFutureInterest = remainingInstallments * monthlyInterest;
+      const expectedFutureCapital = remainingInstallments * monthlyCapital;
+
+      // Si el pool histórico tiene más dinero del que exigirán todas las cuotas futuras,
+      // asignamos ese excedente (mora, sobrepagos) directamente a la cuota actual.
+      if (interestPool - applyInt > expectedFutureInterest) {
+        applyInt += (interestPool - applyInt - expectedFutureInterest);
+      }
+      if (capitalPool - applyCap > expectedFutureCapital) {
+        applyCap += (capitalPool - applyCap - expectedFutureCapital);
       }
 
       applyInt = Number(applyInt.toFixed(2));
