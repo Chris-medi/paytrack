@@ -13,6 +13,7 @@ export interface ScheduledInstallment {
   status: 'paid' | 'partial' | 'pending' | 'overdue';
   interestPaid: number;    // Cuánto interés se pagó realmente
   capitalPaid: number;     // Cuánto capital se pagó realmente
+  paidDate?: Date;
 }
 
 export class LoanCalculator {
@@ -96,6 +97,15 @@ export class LoanCalculator {
     let interestPool = this.calculateTotalInterestPaid(payments);
     let capitalPool = this.calculateTotalCapitalPaid(payments);
 
+    const sortedPayments = [...payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let runningInterest = 0;
+    let runningCapital = 0;
+    const paymentTotals = sortedPayments.map(p => {
+      runningInterest += (p.interestAmount ?? 0);
+      runningCapital += (p.capitalAmount ?? p.amount);
+      return { date: new Date(p.date), totalInt: runningInterest, totalCap: runningCapital };
+    });
+
     for (let i = 0; i < loan.totalInstallments; i++) {
       const dueDate = new Date(loan.firstDueDate);
       dueDate.setMonth(dueDate.getMonth() + i);
@@ -147,6 +157,18 @@ export class LoanCalculator {
         installment.status = 'overdue';
       } else {
         installment.status = 'pending';
+      }
+
+      if (installment.status === 'paid' || installment.status === 'partial') {
+        const requiredInt = schedule.reduce((sum, inst) => sum + inst.interestPaid, 0) + installment.interestPaid;
+        const requiredCap = schedule.reduce((sum, inst) => sum + inst.capitalPaid, 0) + installment.capitalPaid;
+
+        const pt = paymentTotals.find(p => p.totalInt >= requiredInt - 0.01 && p.totalCap >= requiredCap - 0.01);
+        if (pt) {
+          installment.paidDate = pt.date;
+        } else if (sortedPayments.length > 0) {
+          installment.paidDate = new Date(sortedPayments[sortedPayments.length - 1].date);
+        }
       }
 
       schedule.push(installment);

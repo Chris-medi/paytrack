@@ -3,14 +3,15 @@ import { CommonModule, CurrencyPipe, DatePipe, Location } from '@angular/common'
 import { ActivatedRoute } from '@angular/router';
 import { LoanStore } from './store/loan.store';
 import { PaymentStore } from '../payments/store/payment.store';
-import { LoanCalculator, ScheduledInstallment } from '../../domain/logic/loan-calculator';
+import { LoanCalculator } from '../../domain/logic/loan-calculator';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @Component({
   selector: 'app-loan-detail',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, DatePipe, FormsModule],
+  imports: [CommonModule, CurrencyPipe, DatePipe, FormsModule, InputNumberModule],
   template: `
     @if (loan()) {
       <div class="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-20">
@@ -85,7 +86,7 @@ import { environment } from '../../../environments/environment';
       </div>
 
       <!-- Tabs for Cronograma vs Historial -->
-      <div class="px-4 flex gap-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+      <div class="px-4 flex gap-4 mb-4 border-b border-slate-200 dark:border-slate-700 p-2">
         <button (click)="activeTab.set('schedule')" [class.border-emerald-500]="activeTab() === 'schedule'" [class.text-emerald-500]="activeTab() === 'schedule'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-500 border-transparent transition-colors">Cronograma</button>
         <button (click)="activeTab.set('history')" [class.border-emerald-500]="activeTab() === 'history'" [class.text-emerald-500]="activeTab() === 'history'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-500 border-transparent transition-colors">Historial</button>
       </div>
@@ -119,16 +120,20 @@ import { environment } from '../../../environments/environment';
                    }"></div>
                    
                  <div class="flex justify-between items-center mb-3">
-                   <p class="font-bold text-sm text-slate-800 dark:text-slate-200">Cuota #{{ inst.number }} <span class="text-slate-500 font-medium ml-1">· {{ inst.dueDate | date:'MMM d' }}</span></p>
-                   <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
+                   <p class="font-bold text-sm text-slate-800 dark:text-slate-200">Cuota #{{ inst.number }} <span class="text-slate-500 font-medium ml-1">· {{ inst.paidDate | date:'MMM/dd/HH:mm' }}</span></p>
+                   
+                   <div class="gap-2 flex items-center">
+                     <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
                      [ngClass]="{
                        'bg-emerald-100 text-emerald-700': inst.status === 'paid',
                        'bg-amber-100 text-amber-700': inst.status === 'partial',
                        'bg-slate-100 text-slate-600': inst.status === 'pending',
                        'bg-rose-100 text-rose-700': inst.status === 'overdue'
-                     }">
+                      }">
                      {{ inst.status === 'paid' ? 'Pagada' : (inst.status === 'partial' ? 'Parcial' : (inst.status === 'overdue' ? 'Atrasada' : 'Pendiente')) }}
-                   </span>
+                    </span>
+                    <span>{{ inst.dueDate | date:'MMM d' }}</span>
+                  </div>
                  </div>
                  <div class="flex flex-col gap-2">
                    <div class="flex justify-between text-xs items-center">
@@ -232,8 +237,7 @@ import { environment } from '../../../environments/environment';
               </label>
               <div class="relative mb-4">
                 <span class="absolute inset-y-0 left-3 flex items-center font-bold text-slate-400">$</span>
-                <input type="number" [ngModel]="paymentInterest()" (ngModelChange)="paymentInterest.set($event)" 
-                       class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white transition-colors" placeholder="0">
+                <p-inputNumber [ngModel]="paymentInterest()" (ngModelChange)="paymentInterest.set($event)" mode="currency" currency="COP" locale="es-CO" [minFractionDigits]="0" class="w-full bg-slate-50 dark:bg-slate-900 outline-none" />
               </div>
 
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">
@@ -241,8 +245,7 @@ import { environment } from '../../../environments/environment';
               </label>
               <div class="relative mb-2">
                 <span class="absolute inset-y-0 left-3 flex items-center font-bold text-slate-400">$</span>
-                <input type="number" [ngModel]="paymentCapital()" (ngModelChange)="paymentCapital.set($event)" 
-                       class="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:border-emerald-500 text-lg font-semibold dark:text-white transition-colors" placeholder="0">
+                <p-inputNumber [ngModel]="paymentCapital()" (ngModelChange)="paymentCapital.set($event)" mode="currency" currency="COP" locale="es-CO" [minFractionDigits]="0" class="w-full bg-slate-50 dark:bg-slate-900 outline-none" />
               </div>
               
               <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">

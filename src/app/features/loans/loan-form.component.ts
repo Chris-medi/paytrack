@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { LoanStore } from './store/loan.store';
 import { loanSchema } from '../../domain/schemas/loan.schema';
 import { Loan } from '../../domain/models/loan.model';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @Component({
   selector: 'app-loan-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe],
+  imports: [CommonModule, FormsModule, CurrencyPipe, InputNumberModule],
   template: `
     <div class="flex flex-col gap-4 pb-20">
       
@@ -41,6 +42,7 @@ import { Loan } from '../../domain/models/loan.model';
 
         <div>
           <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">📱 Teléfono <span class="lowercase text-[10px]">(WhatsApp)</span></label>
+          
           <input type="tel" [ngModel]="formData().borrowerPhone" (ngModelChange)="updateField('borrowerPhone', $event)" 
                  placeholder="Ej: 573001234567"
                  class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
@@ -54,8 +56,7 @@ import { Loan } from '../../domain/models/loan.model';
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Capital a Prestar</label>
             <div class="relative">
               <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">$</span>
-              <input type="number" [ngModel]="formData().totalAmount" (ngModelChange)="updateField('totalAmount', $event, true)" 
-                     class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+              <p-inputNumber [ngModel]="formData().totalAmount" (ngModelChange)="updateField('totalAmount', $event, true)" mode="currency" currency="COP" locale="es-CO" [minFractionDigits]="0" class="w-full bg-slate-50 dark:bg-slate-900 outline-none" />
             </div>
             <p class="text-rose-500 text-xs mt-1 min-h-[16px]">{{ errors()['totalAmount'] }}</p>
           </div>
