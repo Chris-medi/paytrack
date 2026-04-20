@@ -445,7 +445,7 @@ export class LoanDetailComponent implements OnInit {
 
     const phone = loan.borrowerPhone || '';
     const whatsappUrl = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      ? `https://wa.me/${'57' + phone}?text=${encodeURIComponent(message)}`
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
 
     window.open(whatsappUrl, '_blank');
