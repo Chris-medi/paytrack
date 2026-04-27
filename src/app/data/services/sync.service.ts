@@ -265,7 +265,7 @@ export class SyncService {
     if (this.syncInterval) clearInterval(this.syncInterval);
     this.syncInterval = setInterval(() => {
       this.fullSync();
-    }, 60000 * 10);
+    }, 60000 * 25);
   }
 
   private stopPeriodicSync() {
