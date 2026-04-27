@@ -1,20 +1,6 @@
 import { Loan, LoanStatus } from '../models/loan.model';
 import { Payment } from '../models/payment.model';
-
-/**
- * Representa una cuota programada del cronograma del préstamo.
- */
-export interface ScheduledInstallment {
-  number: number;          // Cuota #1, #2, etc.
-  dueDate: Date;
-  interestDue: number;     // Interés que corresponde a esta cuota
-  capitalDue: number;      // Capital que corresponde a esta cuota
-  totalDue: number;        // Suma (interestDue + capitalDue)
-  status: 'paid' | 'partial' | 'pending' | 'overdue';
-  interestPaid: number;    // Cuánto interés se pagó realmente
-  capitalPaid: number;     // Cuánto capital se pagó realmente
-  paidDate?: Date;
-}
+import { ScheduledInstallment } from '../models/loan.model'
 
 export class LoanCalculator {
 

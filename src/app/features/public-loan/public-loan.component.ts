@@ -2,14 +2,16 @@ import { Component, computed, inject, OnInit, signal, effect } from '@angular/co
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { SupabaseService } from '../../core/supabase/supabase.service';
-import { LoanCalculator, ScheduledInstallment } from '../../domain/logic/loan-calculator';
+import { LoanCalculator } from '../../domain/logic/loan-calculator';
 import { Loan, LoanStatus } from '../../domain/models/loan.model';
 import { Payment } from '../../domain/models/payment.model';
+import { CartPaidDetailsComponent } from '../../shared/components/cart-paid-details.component';
+import { CartPaidHistoryComponent } from '../../shared/components/cart-paid-history.component';
 
 @Component({
   selector: 'app-public-loan',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, DatePipe],
+  imports: [CommonModule, CurrencyPipe, DatePipe, CartPaidDetailsComponent, CartPaidHistoryComponent],
   template: `
     <!-- Full screen public view -->
     <div class="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-slate-100">
@@ -125,9 +127,9 @@ import { Payment } from '../../domain/models/payment.model';
           </div>
 
           <!-- Tabs for Schedule vs History -->
-          <div class="flex gap-4 mb-4 border-b border-slate-700">
-            <button (click)="activeTab.set('schedule')" [class.border-emerald-400]="activeTab() === 'schedule'" [class.text-emerald-400]="activeTab() === 'schedule'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-400 border-transparent transition-colors">Cronograma</button>
-            <button (click)="activeTab.set('history')" [class.border-emerald-400]="activeTab() === 'history'" [class.text-emerald-400]="activeTab() === 'history'" class="pb-2 border-b-2 text-sm font-bold uppercase tracking-wider text-slate-400 border-transparent transition-colors">Historial</button>
+          <div class="px-4 flex gap-4 mb-4 border-b border-slate-200 dark:border-slate-700 p-2 m-2">
+            <button (click)="activeTab.set('schedule')" [class.underline]="activeTab() === 'schedule'" [class.text-emerald-500]="activeTab() === 'schedule'" class="pb-2  text-sm font-bold uppercase tracking-wider border-transparent transition-colors">Cronograma</button>
+            <button (click)="activeTab.set('history')" [class.underline]="activeTab() === 'history'" [class.text-emerald-500]="activeTab() === 'history'" class="pb-2 text-sm font-bold uppercase tracking-wider text-slate-500 border-transparent transition-colors">Historial</button>
           </div>
 
           <!-- Tab Content -->
@@ -147,55 +149,7 @@ import { Payment } from '../../domain/models/payment.model';
 
               <div class="flex flex-col gap-3">
                  @for (inst of currentYearSchedule(); track inst.number) {
-                   <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-sm relative overflow-hidden backdrop-blur-sm">
-                     <div class="absolute left-0 top-0 bottom-0 w-1"
-                       [ngClass]="{
-                         'bg-emerald-500': inst.status === 'paid',
-                         'bg-amber-500': inst.status === 'partial',
-                         'bg-slate-600': inst.status === 'pending',
-                         'bg-rose-500': inst.status === 'overdue'
-                       }"></div>
-                       
-                     <div class="flex justify-between items-center mb-3">
-                       <p class="font-bold text-sm text-slate-200">Cuota #{{ inst.number }} <span class="text-slate-500 font-medium ml-1">· {{ inst.dueDate | date:'MMM d' }}</span></p>
-                       <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
-                         [ngClass]="{
-                           'bg-emerald-500/20 text-emerald-400': inst.status === 'paid',
-                           'bg-amber-500/20 text-amber-400': inst.status === 'partial',
-                           'bg-slate-700 text-slate-400': inst.status === 'pending',
-                           'bg-rose-500/20 text-rose-400': inst.status === 'overdue'
-                         }">
-                         {{ inst.status === 'paid' ? 'Pagada' : (inst.status === 'partial' ? 'Parcial' : (inst.status === 'overdue' ? 'Atrasada' : 'Pendiente')) }}
-                       </span>
-                     </div>
-                     <div class="flex flex-col gap-2">
-                       <div class="flex justify-between text-xs items-center">
-                         <span class="text-slate-400">Capital</span>
-                         <div class="flex items-center gap-2">
-                           @if (inst.capitalPaid > 0) {
-                             <span class="text-emerald-400 font-bold">{{ inst.capitalPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                             <span class="text-slate-600">/</span>
-                           }
-                           <span class="text-slate-300 font-medium">{{ inst.capitalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                         </div>
-                       </div>
-                       <div class="flex justify-between text-xs items-center">
-                         <span class="text-slate-400">Interés</span>
-                         <div class="flex items-center gap-2">
-                           @if (inst.interestPaid > 0) {
-                             <span class="text-emerald-400 font-bold">{{ inst.interestPaid | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                             <span class="text-slate-600">/</span>
-                           }
-                           <span class="text-slate-300 font-medium">{{ inst.interestDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                         </div>
-                       </div>
-                       <div class="h-px bg-slate-700/50 my-1"></div>
-                       <div class="flex justify-between text-sm items-center font-bold">
-                         <span class="text-slate-200">Total</span>
-                         <span class="text-slate-200">{{ inst.totalDue | currency:'COP':'symbol-narrow':'1.2-2' }}</span>
-                       </div>
-                     </div>
-                   </div>
+                   <app-cart-paid-details [inst]="inst" />
                  }
                  @if (currentYearSchedule().length === 0) {
                    <div class="text-center py-8 text-slate-500 text-sm">
@@ -209,33 +163,7 @@ import { Payment } from '../../domain/models/payment.model';
             @if (activeTab() === 'history') {
               <div class="flex flex-col gap-3">
                 @for (payment of payments(); track payment.id) {
-                  <div class="bg-slate-800/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50 flex flex-col gap-2">
-                    <div class="flex justify-between items-start">
-                      <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        </div>
-                        <div>
-                          <p class="text-sm font-semibold text-white">Pago recibido</p>
-                          <p class="text-xs text-slate-500">{{ payment.date | date:'dd MMM yyyy, h:mm a' }}</p>
-                        </div>
-                      </div>
-                      <p class="font-bold text-emerald-400 text-lg">+{{ payment.amount | currency:'COP':'symbol-narrow':'1.2-2' }}</p>
-                    </div>
-                    
-                    <div class="bg-slate-900/50 rounded-lg p-2 mt-1 flex justify-between text-xs">
-                      <div class="text-slate-400">
-                        <span class="font-semibold text-slate-300">Capital:</span> {{ (payment.capitalAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
-                      </div>
-                      <div class="text-slate-400">
-                        <span class="font-semibold text-slate-300">Interés:</span> {{ (payment.interestAmount || 0) | currency:'COP':'symbol-narrow':'1.2-2' }}
-                      </div>
-                    </div>
-
-                    @if (payment.note) {
-                      <p class="text-xs text-slate-400 px-1 mt-1 italic">{{ payment.note }}</p>
-                    }
-                  </div>
+                  <app-cart-paid-history [payment]="payment" />
                 }
 
                 @if (payments().length === 0) {
